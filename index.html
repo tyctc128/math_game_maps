@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>數學冒險島</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="intro" id="introOverlay" role="dialog" aria-modal="true" aria-labelledby="introTitle">
+      <section class="intro-card">
+        <div class="elder-scene">
+          <img src="assets/generated/elder-guide-alpha.png" alt="" />
+          <div>
+            <p class="intro-kicker">島嶼長老</p>
+            <h2 id="introTitle">冒險任務</h2>
+            <p class="typewriter" id="introText"></p>
+          </div>
+        </div>
+        <div class="intro-actions">
+          <button class="primary" id="startIntro">開始冒險</button>
+          <button class="ghost-button" id="skipIntro">略過</button>
+        </div>
+      </section>
+    </div>
+
+    <main class="game">
+      <section class="hud">
+        <div class="brand">
+          <h1>冒險島</h1>
+        </div>
+        <button class="sound-toggle" id="soundToggle" type="button" aria-label="開啟音樂">🔇</button>
+        <div class="status-strip">
+          <div><b id="currentIsland">乘除島</b><span>島嶼</span></div>
+          <div><b id="answeredCount">0 / 8</b><span>答對題數</span></div>
+          <div><b id="correctCount">0</b><span>答對</span></div>
+          <div><b id="weaponName">木劍</b><span>武器</span></div>
+        </div>
+      </section>
+
+      <section class="world">
+        <aside class="islands">
+          <button class="island-card active" data-island="multiply">
+            <i class="badge rock"></i>
+          </button>
+          <button class="island-card" data-island="decimal">
+            <i class="badge lake"></i>
+          </button>
+          <button class="island-card" data-island="time">
+            <i class="badge clock"></i>
+          </button>
+        </aside>
+
+        <section class="map-wrap">
+          <div class="map-art" id="mapArt" aria-label="遊戲地圖">
+            <button class="map-node node-treasure" data-event="treasure" aria-label="寶箱">
+              <img src="assets/generated/prop-treasure.png" alt="" />
+            </button>
+            <button class="map-node node-treasure node-treasure-2" data-event="treasure" aria-label="寶箱">
+              <img src="assets/generated/prop-treasure.png" alt="" />
+            </button>
+            <button class="map-node node-treasure node-treasure-3" data-event="treasure" aria-label="寶箱">
+              <img src="assets/generated/prop-treasure.png" alt="" />
+            </button>
+            <button class="map-node node-bridge" data-event="bridge" aria-label="橋">
+              <img src="assets/generated/prop-bridge.png" alt="" />
+            </button>
+            <button class="map-node node-bridge node-bridge-2" data-event="bridge" aria-label="橋">
+              <img src="assets/generated/prop-bridge.png" alt="" />
+            </button>
+            <button class="map-node node-door" data-event="door" aria-label="門">
+              <img src="assets/generated/prop-door.png" alt="" />
+            </button>
+            <button class="map-node node-door node-door-2" data-event="door" aria-label="門">
+              <img src="assets/generated/prop-door.png" alt="" />
+            </button>
+            <button class="map-node node-npc" data-event="npc" aria-label="NPC">
+              <img src="assets/generated/prop-npc.png" alt="" />
+            </button>
+            <button class="map-node node-npc node-npc-2" data-event="npc" aria-label="NPC">
+              <img src="assets/generated/prop-npc.png" alt="" />
+            </button>
+            <button class="map-node node-npc node-npc-3" data-event="npc" aria-label="NPC">
+              <img src="assets/generated/prop-npc.png" alt="" />
+            </button>
+            <button class="map-node node-boss locked" id="bossNode" aria-label="Boss">
+              <img id="bossMapIcon" src="assets/generated/boss-rock.png" alt="" />
+            </button>
+            <div class="boss-taunt hidden" id="bossTaunt">
+              <b id="bossTauntName">Boss</b>
+              <span>來找我決鬥！</span>
+            </div>
+            <div class="tutorial-arrow" id="tutorialArrow" aria-hidden="true"></div>
+            <div class="hero" id="hero" aria-label="角色">
+              <img src="assets/generated/hero.png" alt="" />
+            </div>
+          </div>
+          <div class="map-caption" id="missionLog">點地圖任意位置可以移動角色；點寶箱、橋、門、NPC 會觸發題目。</div>
+          <div class="flight-controls hidden" id="flightControls" aria-label="飛行控制">
+            <button data-flight-move="up">↑</button>
+            <button data-flight-move="left">←</button>
+            <button data-flight-move="down">↓</button>
+            <button data-flight-move="right">→</button>
+          </div>
+        </section>
+
+        <aside class="power">
+          <h2>本島能力</h2>
+          <label>探索進度 <span id="progressText">0%</span></label>
+          <div class="bar"><i id="progressBar"></i></div>
+          <label>正確率加成</label>
+          <div class="bar"><i id="bossPreviewBar"></i></div>
+          <div class="ability-grid">
+            <div><b id="hpPreview">3</b><span>血量</span></div>
+            <div><b id="attackPreview">1</b><span>攻擊</span></div>
+            <div><b id="comboPreview">0</b><span>連對</span></div>
+          </div>
+          <div class="inventory-panel">
+            <span>背包</span>
+            <div class="inventory-icons" id="inventoryIcons"></div>
+          </div>
+          <button class="primary" id="bossButton" disabled>答對 8 題挑戰 Boss</button>
+        </aside>
+      </section>
+    </main>
+
+    <div class="modal hidden" id="questionModal" role="dialog" aria-modal="true">
+      <section class="modal-card question-card">
+        <header>
+          <p id="questionTitle">答題挑戰</p>
+          <button class="close" id="closeQuestion" aria-label="關閉">×</button>
+        </header>
+        <h2 id="questionText"></h2>
+        <div class="answers" id="answerArea"></div>
+        <div class="number-pad hidden" id="numberPad"></div>
+        <p class="feedback" id="feedback"></p>
+        <div class="reward-card hidden" id="rewardCard">
+          <img id="rewardIcon" src="assets/generated/item-wood-sword.png" alt="" />
+          <div>
+            <span>獲得</span>
+            <b id="rewardName">木劍</b>
+          </div>
+        </div>
+        <button class="primary hidden" id="nextQuestion">繼續探索</button>
+      </section>
+    </div>
+
+    <div class="modal hidden" id="bossModal" role="dialog" aria-modal="true">
+      <section class="modal-card boss-card">
+        <div class="battle-scene" id="battleArena">
+          <div class="battle-bars">
+            <label>勇者</label>
+            <div class="bar hp"><i id="playerHpBar"></i></div>
+            <label id="bossName">Boss</label>
+            <div class="bar boss-hp"><i id="bossHpBar"></i></div>
+          </div>
+          <div class="arena-entity arena-player" id="arenaPlayer">
+            <img src="assets/generated/hero.png" alt="" />
+          </div>
+          <div class="arena-entity arena-boss" id="arenaBoss">
+            <img src="assets/generated/boss-rock.png" alt="" />
+          </div>
+          <div class="arena-hint">移動並發射武器，別讓 Boss 靠近。</div>
+        </div>
+        <p id="battleStatus"></p>
+        <div class="battle-actions" id="battleActions">
+          <div class="move-pad" aria-label="移動控制">
+            <button data-move="up">↑</button>
+            <button data-move="left">←</button>
+            <button data-move="down">↓</button>
+            <button data-move="right">→</button>
+          </div>
+          <button class="fire-button" id="fireButton">發射</button>
+        </div>
+        <button class="primary hidden" id="endBattle">回到地圖</button>
+      </section>
+    </div>
+
+    <div class="modal hidden" id="clearModal" role="dialog" aria-modal="true">
+      <section class="modal-card clear-card">
+        <div class="fireworks" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <h2 id="clearTitle">恭喜過關！</h2>
+        <p id="clearText">Boss 已被毀滅，下一關已開啟。</p>
+        <button class="primary" id="clearNext">前往下一關</button>
+      </section>
+    </div>
+
+    <script src="questions.js"></script>
+    <script src="game.js"></script>
+  </body>
+</html>
