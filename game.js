@@ -121,9 +121,11 @@ const originalNodeData = eventNodes.map((node) => ({
 
 const audio = {
   player: null,
-  enabled: false,
+  enabled: true,
   currentSrc: "",
-  volume: 0.18
+  volume: 0.18,
+  unlocked: false,
+  sfxVolume: 0.48
 };
 
 const introMessage = "勇者，島上的寶物被怪獸封印了。\n點亮發光的寶箱、橋、石門和村民，回答題目取得武器與寶物。\n第一次每座島答對 8 題後，就會進入決鬥場。\n如果決鬥失敗，回到本關再答對 3 題就能重挑戰。\n打敗 Boss，下一座島才會開啟。";
@@ -299,8 +301,10 @@ function hideBossTaunt() {
 function toggleSound() {
   audio.enabled = !audio.enabled;
   if (audio.enabled) {
+    audio.unlocked = true;
     startMusic();
   } else {
+    audio.unlocked = false;
     stopMusic();
   }
   updateSoundButton();
@@ -328,7 +332,7 @@ function startMusic() {
   }
   audio.player.volume = audio.volume;
   audio.player.play().catch(() => {
-    audio.enabled = false;
+    audio.unlocked = false;
     updateSoundButton();
   });
 }
@@ -346,7 +350,31 @@ function getMusicSrcForIsland(islandKey) {
 }
 
 function playSfx(name) {
-  // Sound effects are intentionally disabled; only stage background music plays.
+  if (!audio.enabled) return;
+  const src = {
+    correct: "sounds/right_ans.mp3",
+    wrong: "sounds/wrong_ans.mp3",
+    reward: "sounds/get_treasure.mp3",
+    shield: "sounds/be_hit.mp3",
+    hit: "sounds/be_hit.mp3",
+    bossHit: "sounds/boss_be_hit.mp3",
+    hammer: "sounds/hammer.mp3",
+    time: "sounds/bell.mp3",
+    win: "sounds/pass_boss.mp3",
+    fireball: "sounds/fireball.mp3",
+    fail: "sounds/nopass_boss.mp3",
+    open: "sounds/openbox.mp3"
+  }[name];
+  if (!src) return;
+  const effect = new Audio(src);
+  effect.volume = audio.sfxVolume;
+  effect.play().catch(() => {});
+}
+
+function unlockMusicPlayback() {
+  if (!audio.enabled || audio.unlocked) return;
+  audio.unlocked = true;
+  startMusic();
 }
 
 function startFlightMode() {
@@ -730,7 +758,7 @@ function handleFlightCollision(obj) {
     showFlightWarning("被怪物干擾！", "答對數 -1");
     updateHud();
   } else {
-    playSfx("wrong");
+    playSfx("hit");
     missionLog.textContent = "小心！再撞到 1 隻怪物會少 1 題答對數。";
     showFlightWarning("撞到怪物！", "再撞一次會扣答對數");
   }
@@ -1102,6 +1130,7 @@ function openQuestion(eventName) {
     return;
   }
 
+  playSfx("open");
   const question = pickQuestion();
   state.currentQuestion = question;
   state.currentEvent = eventName;
@@ -1234,13 +1263,37 @@ function isCorrectAnswer(value, question) {
     const accepted = getAcceptedAnswers(question).map(normalizeAnswer);
     return accepted.some((answer) => answersMatch(value, answer));
   }
+  if (question.type === "choice") {
+    if (isComputedDurationAnswer(value, question)) return true;
+    const accepted = [question.answer, ...(Array.isArray(question.acceptedAnswers) ? question.acceptedAnswers : [])]
+      .flat()
+      .map(String);
+    return accepted.some((answer) => answersMatch(value, answer));
+  }
   const expected = getExpectedAnswers(question).map(normalizeAnswer);
+  if (expected.length === 1) {
+    return expected.some((answer) => answersMatch(value, answer));
+  }
   const given = Array.isArray(value)
     ? value.map(normalizeAnswer)
     : String(value).split(/[\uFF0C,\u3001\s]+/).filter(Boolean).map(normalizeAnswer);
   if (expected.length !== given.length) return false;
   if (isEquivalentMeridiemTimeAnswer(question, given, expected)) return true;
   return expected.every((answer, index) => answersMatch(given[index], answer));
+}
+
+function isComputedDurationAnswer(value, question) {
+  const prompt = String(question.prompt);
+  if (!/經過多久/.test(prompt)) return false;
+  const match = prompt.match(/(\d{1,2})\s*:\s*(\d{2})[\s\S]*?(\d{1,2})\s*:\s*(\d{2})/);
+  if (!match) return false;
+  const [, startHourText, startMinuteText, endHourText, endMinuteText] = match;
+  const start = Number(startHourText) * 60 + Number(startMinuteText);
+  let end = Number(endHourText) * 60 + Number(endMinuteText);
+  if (end < start) end += 24 * 60;
+  const duration = end - start;
+  const givenNumber = extractNumericAnswer(value);
+  return givenNumber !== null && Number(givenNumber) === duration;
 }
 
 function isEquivalentMeridiemTimeAnswer(question, given, expected) {
@@ -1261,11 +1314,27 @@ function answersMatch(given, expected) {
   if (isPlainNumber(normalizedGiven) && isPlainNumber(normalizedExpected)) {
     return Number(normalizedGiven) === Number(normalizedExpected);
   }
+  const givenNumber = extractNumericAnswer(normalizedGiven);
+  const expectedNumber = extractNumericAnswer(normalizedExpected);
+  if (givenNumber !== null && expectedNumber !== null) {
+    return Number(givenNumber) === Number(expectedNumber);
+  }
   return false;
 }
 
 function isPlainNumber(value) {
   return /^-?\d+(?:\.\d+)?$/.test(String(value));
+}
+
+function extractNumericAnswer(value) {
+  const text = normalizeAnswer(value)
+    .replace(/[()（）]/g, "")
+    .replace(/答案是/g, "");
+  const match = text.match(/^-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const rest = text.slice(match[0].length);
+  if (!rest) return match[0];
+  return /^[\u4e00-\u9fff]+$/.test(rest) ? match[0] : null;
 }
 
 function grantReward() {
@@ -1954,11 +2023,11 @@ function whackHole(index) {
 function whackActiveHole() {
   const battle = state.battle;
   if (!battle || battle.mode !== "whack" || battle.ended || battle.waitingToStart) return;
-  swingWhackHammer();
   if (battle.bossVisible && battle.activeHole >= 0) {
     whackHole(battle.activeHole);
     return;
   }
+  swingWhackHammer();
   battleArena.classList.remove("whack-empty");
   void battleArena.offsetWidth;
   battleArena.classList.add("whack-empty");
@@ -1968,6 +2037,7 @@ function whackActiveHole() {
 function swingWhackHammer() {
   const hammer = battleArena.querySelector("#whackCursor");
   if (!hammer) return;
+  playSfx("hammer");
   hammer.classList.remove("swing");
   void hammer.offsetWidth;
   hammer.classList.add("swing");
@@ -2007,6 +2077,7 @@ function throwWhackFireball() {
   if (!battle || battle.mode !== "whack" || battle.ended || !battle.bossVisible) return;
   const active = battleArena.querySelector(".whack-hole.active");
   if (!active) return;
+  playSfx("fireball");
   const arenaRect = battleArena.getBoundingClientRect();
   const rect = active.getBoundingClientRect();
   const fireball = document.createElement("div");
@@ -2089,6 +2160,7 @@ function playerShoot() {
   if (!battle || battle.ended) return;
   const now = performance.now();
   if (now - battle.lastShot < 360) return;
+  playSfx("fireball");
   battle.lastShot = now;
   const dx = battle.boss.x - battle.player.x;
   const dy = battle.boss.y - battle.player.y;
@@ -2108,6 +2180,7 @@ function playerShoot() {
 
 function shootBossFireball() {
   const battle = state.battle;
+  playSfx("fireball");
   const dx = battle.player.x - battle.boss.x;
   const dy = battle.player.y - battle.boss.y;
   const dist = Math.hypot(dx, dy) || 1;
@@ -2282,6 +2355,7 @@ function finishBattle(win) {
       showClearModal(next);
     }, battleMode === "timeRitual" ? 2300 : 1050);
   } else {
+    playSfx("fail");
     state.retryNeeded = 3;
     state.bossTauntShown = false;
     state.bossReadyMessageShown = false;
@@ -2393,6 +2467,8 @@ bossNode.addEventListener("click", (event) => {
 
 islandButtons.forEach((button) => button.addEventListener("click", () => resetIsland(button.dataset.island)));
 soundToggle?.addEventListener("click", toggleSound);
+window.addEventListener("pointerdown", unlockMusicPlayback, { once: true });
+window.addEventListener("keydown", unlockMusicPlayback, { once: true });
 bossButton.addEventListener("click", () => {
   moveHeroToElement(bossNode);
   window.setTimeout(startBossBattle, 560);
@@ -2563,3 +2639,5 @@ skipIntro.addEventListener("click", () => finishIntro(true));
 
 resetIsland("multiply");
 runIntro();
+updateSoundButton();
+startMusic();

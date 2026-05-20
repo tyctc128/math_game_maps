@@ -1295,11 +1295,14 @@ h1 {
 .time-victory section {
   position: relative;
   z-index: 2;
-  width: min(440px, calc(100% - 36px));
-  padding: 20px 22px;
-  border-radius: 8px;
-  border: 3px solid rgba(255, 244, 174, .8);
-  background: linear-gradient(180deg, rgba(255, 248, 214, .96), rgba(232, 187, 88, .94));
+  width: min(680px, calc(100% - 36px));
+  aspect-ratio: 16 / 10;
+  display: grid;
+  align-content: center;
+  padding: clamp(70px, 10vw, 116px) clamp(82px, 13vw, 150px);
+  border: 0;
+  border-radius: 14px;
+  background: url("assets/generated/victory-scroll-book.png") center / 100% 100% no-repeat;
   color: #3b281c;
   text-align: center;
   box-shadow: 0 24px 58px rgba(5, 22, 37, .42);
@@ -1308,11 +1311,14 @@ h1 {
 
 .time-victory h3 {
   margin: 0 0 8px;
-  font-size: clamp(2rem, 5vw, 3.2rem);
+  color: #422813;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  text-shadow: 0 2px 0 rgba(255, 244, 184, .74), 0 8px 18px rgba(94, 58, 18, .18);
 }
 
 .time-victory p {
   margin: 0;
+  color: #5b3517;
   font-weight: 900;
   font-size: clamp(1.1rem, 2.4vw, 1.45rem);
 }
@@ -1873,29 +1879,34 @@ h1 {
 .clear-card {
   position: relative;
   overflow: hidden;
-  width: min(620px, 100%);
-  padding: 42px 28px 28px;
+  width: min(840px, 96vw);
+  aspect-ratio: 16 / 10;
+  min-height: 330px;
+  padding: clamp(88px, 12vw, 150px) clamp(96px, 16vw, 190px) clamp(64px, 8vw, 112px);
   text-align: center;
-  background:
-    radial-gradient(circle at 50% 22%, rgba(255, 235, 130, .82), transparent 28%),
-    linear-gradient(180deg, #fff8d7, #f0bd64 76%, #d88a3f);
+  border: 0;
+  border-radius: 14px;
+  background: url("assets/generated/victory-scroll-book.png") center / 100% 100% no-repeat;
+  box-shadow: 0 28px 70px rgba(8, 17, 25, .48);
 }
 
 .clear-card h2 {
   position: relative;
   z-index: 2;
-  margin: 42px 0 10px;
-  color: #3c2718;
-  font-size: clamp(2rem, 5vw, 3.4rem);
-  text-shadow: 0 3px 0 rgba(255, 255, 255, .55);
+  margin: 0 0 12px;
+  color: #422813;
+  font-size: clamp(2.15rem, 5vw, 4rem);
+  letter-spacing: .04em;
+  text-shadow: 0 2px 0 rgba(255, 244, 184, .74), 0 8px 18px rgba(94, 58, 18, .18);
 }
 
 .clear-card p {
   position: relative;
   z-index: 2;
-  margin: 0 0 24px;
-  color: #4c3018;
-  font-size: 1.2rem;
+  width: min(520px, 100%);
+  margin: 0 auto 22px;
+  color: #5b3517;
+  font-size: clamp(1.05rem, 2.3vw, 1.35rem);
   font-weight: 900;
   line-height: 1.6;
 }
@@ -1903,14 +1914,16 @@ h1 {
 .clear-card .primary {
   position: relative;
   z-index: 2;
-  width: min(360px, 100%);
+  width: min(300px, 100%);
   margin: 0 auto;
+  border: 2px solid rgba(108, 55, 16, .42);
+  background: linear-gradient(180deg, #b75d2e, #823415);
+  box-shadow: 0 8px 0 rgba(83, 44, 18, .34), 0 18px 34px rgba(112, 61, 22, .24);
+  color: #fff7d8;
 }
 
 .fireworks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .fireworks i {
@@ -1972,6 +1985,21 @@ h1 {
   .status-strip,
   .islands,
   .answers { grid-template-columns: 1fr 1fr; }
+  .clear-card {
+    width: min(96vw, 620px);
+    min-height: 300px;
+    padding: 72px 58px 52px;
+  }
+  .clear-card h2 {
+    font-size: clamp(1.8rem, 9vw, 2.7rem);
+  }
+  .clear-card p {
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+  .time-victory section {
+    padding: 60px 52px 46px;
+  }
   .elder-scene { grid-template-columns: 1fr; text-align: center; }
   .elder-scene img { max-height: 190px; }
   .battle-actions { grid-template-columns: 1fr; }

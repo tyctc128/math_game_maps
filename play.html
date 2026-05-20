@@ -1302,11 +1302,14 @@ h1 {
 .time-victory section {
   position: relative;
   z-index: 2;
-  width: min(440px, calc(100% - 36px));
-  padding: 20px 22px;
-  border-radius: 8px;
-  border: 3px solid rgba(255, 244, 174, .8);
-  background: linear-gradient(180deg, rgba(255, 248, 214, .96), rgba(232, 187, 88, .94));
+  width: min(680px, calc(100% - 36px));
+  aspect-ratio: 16 / 10;
+  display: grid;
+  align-content: center;
+  padding: clamp(70px, 10vw, 116px) clamp(82px, 13vw, 150px);
+  border: 0;
+  border-radius: 14px;
+  background: url("assets/generated/victory-scroll-book.png") center / 100% 100% no-repeat;
   color: #3b281c;
   text-align: center;
   box-shadow: 0 24px 58px rgba(5, 22, 37, .42);
@@ -1315,11 +1318,14 @@ h1 {
 
 .time-victory h3 {
   margin: 0 0 8px;
-  font-size: clamp(2rem, 5vw, 3.2rem);
+  color: #422813;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  text-shadow: 0 2px 0 rgba(255, 244, 184, .74), 0 8px 18px rgba(94, 58, 18, .18);
 }
 
 .time-victory p {
   margin: 0;
+  color: #5b3517;
   font-weight: 900;
   font-size: clamp(1.1rem, 2.4vw, 1.45rem);
 }
@@ -1880,29 +1886,34 @@ h1 {
 .clear-card {
   position: relative;
   overflow: hidden;
-  width: min(620px, 100%);
-  padding: 42px 28px 28px;
+  width: min(840px, 96vw);
+  aspect-ratio: 16 / 10;
+  min-height: 330px;
+  padding: clamp(88px, 12vw, 150px) clamp(96px, 16vw, 190px) clamp(64px, 8vw, 112px);
   text-align: center;
-  background:
-    radial-gradient(circle at 50% 22%, rgba(255, 235, 130, .82), transparent 28%),
-    linear-gradient(180deg, #fff8d7, #f0bd64 76%, #d88a3f);
+  border: 0;
+  border-radius: 14px;
+  background: url("assets/generated/victory-scroll-book.png") center / 100% 100% no-repeat;
+  box-shadow: 0 28px 70px rgba(8, 17, 25, .48);
 }
 
 .clear-card h2 {
   position: relative;
   z-index: 2;
-  margin: 42px 0 10px;
-  color: #3c2718;
-  font-size: clamp(2rem, 5vw, 3.4rem);
-  text-shadow: 0 3px 0 rgba(255, 255, 255, .55);
+  margin: 0 0 12px;
+  color: #422813;
+  font-size: clamp(2.15rem, 5vw, 4rem);
+  letter-spacing: .04em;
+  text-shadow: 0 2px 0 rgba(255, 244, 184, .74), 0 8px 18px rgba(94, 58, 18, .18);
 }
 
 .clear-card p {
   position: relative;
   z-index: 2;
-  margin: 0 0 24px;
-  color: #4c3018;
-  font-size: 1.2rem;
+  width: min(520px, 100%);
+  margin: 0 auto 22px;
+  color: #5b3517;
+  font-size: clamp(1.05rem, 2.3vw, 1.35rem);
   font-weight: 900;
   line-height: 1.6;
 }
@@ -1910,14 +1921,16 @@ h1 {
 .clear-card .primary {
   position: relative;
   z-index: 2;
-  width: min(360px, 100%);
+  width: min(300px, 100%);
   margin: 0 auto;
+  border: 2px solid rgba(108, 55, 16, .42);
+  background: linear-gradient(180deg, #b75d2e, #823415);
+  box-shadow: 0 8px 0 rgba(83, 44, 18, .34), 0 18px 34px rgba(112, 61, 22, .24);
+  color: #fff7d8;
 }
 
 .fireworks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .fireworks i {
@@ -1979,6 +1992,21 @@ h1 {
   .status-strip,
   .islands,
   .answers { grid-template-columns: 1fr 1fr; }
+  .clear-card {
+    width: min(96vw, 620px);
+    min-height: 300px;
+    padding: 72px 58px 52px;
+  }
+  .clear-card h2 {
+    font-size: clamp(1.8rem, 9vw, 2.7rem);
+  }
+  .clear-card p {
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+  .time-victory section {
+    padding: 60px 52px 46px;
+  }
   .elder-scene { grid-template-columns: 1fr; text-align: center; }
   .elder-scene img { max-height: 190px; }
   .battle-actions { grid-template-columns: 1fr; }
@@ -2030,7 +2058,7 @@ h1 {
         <div class="brand">
           <h1>冒險島</h1>
         </div>
-        <button class="sound-toggle" id="soundToggle" type="button" aria-label="開啟音樂">🔇</button>
+        <button class="sound-toggle on" id="soundToggle" type="button" aria-label="關閉音樂">🔊</button>
         <div class="status-strip">
           <div><b id="currentIsland">乘除島</b><span>島嶼</span></div>
           <div><b id="answeredCount">0 / 8</b><span>答對題數</span></div>
@@ -6527,9 +6555,11 @@ const originalNodeData = eventNodes.map((node) => ({
 
 const audio = {
   player: null,
-  enabled: false,
+  enabled: true,
   currentSrc: "",
-  volume: 0.18
+  volume: 0.18,
+  unlocked: false,
+  sfxVolume: 0.48
 };
 
 const introMessage = "勇者，島上的寶物被怪獸封印了。\n點亮發光的寶箱、橋、石門和村民，回答題目取得武器與寶物。\n第一次每座島答對 8 題後，就會進入決鬥場。\n如果決鬥失敗，回到本關再答對 3 題就能重挑戰。\n打敗 Boss，下一座島才會開啟。";
@@ -6705,8 +6735,10 @@ function hideBossTaunt() {
 function toggleSound() {
   audio.enabled = !audio.enabled;
   if (audio.enabled) {
+    audio.unlocked = true;
     startMusic();
   } else {
+    audio.unlocked = false;
     stopMusic();
   }
   updateSoundButton();
@@ -6734,7 +6766,7 @@ function startMusic() {
   }
   audio.player.volume = audio.volume;
   audio.player.play().catch(() => {
-    audio.enabled = false;
+    audio.unlocked = false;
     updateSoundButton();
   });
 }
@@ -6752,7 +6784,31 @@ function getMusicSrcForIsland(islandKey) {
 }
 
 function playSfx(name) {
-  // Sound effects are intentionally disabled; only stage background music plays.
+  if (!audio.enabled) return;
+  const src = {
+    correct: "sounds/right_ans.mp3",
+    wrong: "sounds/wrong_ans.mp3",
+    reward: "sounds/get_treasure.mp3",
+    shield: "sounds/be_hit.mp3",
+    hit: "sounds/be_hit.mp3",
+    bossHit: "sounds/boss_be_hit.mp3",
+    hammer: "sounds/hammer.mp3",
+    time: "sounds/bell.mp3",
+    win: "sounds/pass_boss.mp3",
+    fireball: "sounds/fireball.mp3",
+    fail: "sounds/nopass_boss.mp3",
+    open: "sounds/openbox.mp3"
+  }[name];
+  if (!src) return;
+  const effect = new Audio(src);
+  effect.volume = audio.sfxVolume;
+  effect.play().catch(() => {});
+}
+
+function unlockMusicPlayback() {
+  if (!audio.enabled || audio.unlocked) return;
+  audio.unlocked = true;
+  startMusic();
 }
 
 function startFlightMode() {
@@ -7136,7 +7192,7 @@ function handleFlightCollision(obj) {
     showFlightWarning("被怪物干擾！", "答對數 -1");
     updateHud();
   } else {
-    playSfx("wrong");
+    playSfx("hit");
     missionLog.textContent = "小心！再撞到 1 隻怪物會少 1 題答對數。";
     showFlightWarning("撞到怪物！", "再撞一次會扣答對數");
   }
@@ -7508,6 +7564,7 @@ function openQuestion(eventName) {
     return;
   }
 
+  playSfx("open");
   const question = pickQuestion();
   state.currentQuestion = question;
   state.currentEvent = eventName;
@@ -7640,13 +7697,37 @@ function isCorrectAnswer(value, question) {
     const accepted = getAcceptedAnswers(question).map(normalizeAnswer);
     return accepted.some((answer) => answersMatch(value, answer));
   }
+  if (question.type === "choice") {
+    if (isComputedDurationAnswer(value, question)) return true;
+    const accepted = [question.answer, ...(Array.isArray(question.acceptedAnswers) ? question.acceptedAnswers : [])]
+      .flat()
+      .map(String);
+    return accepted.some((answer) => answersMatch(value, answer));
+  }
   const expected = getExpectedAnswers(question).map(normalizeAnswer);
+  if (expected.length === 1) {
+    return expected.some((answer) => answersMatch(value, answer));
+  }
   const given = Array.isArray(value)
     ? value.map(normalizeAnswer)
     : String(value).split(/[\uFF0C,\u3001\s]+/).filter(Boolean).map(normalizeAnswer);
   if (expected.length !== given.length) return false;
   if (isEquivalentMeridiemTimeAnswer(question, given, expected)) return true;
   return expected.every((answer, index) => answersMatch(given[index], answer));
+}
+
+function isComputedDurationAnswer(value, question) {
+  const prompt = String(question.prompt);
+  if (!/經過多久/.test(prompt)) return false;
+  const match = prompt.match(/(\d{1,2})\s*:\s*(\d{2})[\s\S]*?(\d{1,2})\s*:\s*(\d{2})/);
+  if (!match) return false;
+  const [, startHourText, startMinuteText, endHourText, endMinuteText] = match;
+  const start = Number(startHourText) * 60 + Number(startMinuteText);
+  let end = Number(endHourText) * 60 + Number(endMinuteText);
+  if (end < start) end += 24 * 60;
+  const duration = end - start;
+  const givenNumber = extractNumericAnswer(value);
+  return givenNumber !== null && Number(givenNumber) === duration;
 }
 
 function isEquivalentMeridiemTimeAnswer(question, given, expected) {
@@ -7667,11 +7748,27 @@ function answersMatch(given, expected) {
   if (isPlainNumber(normalizedGiven) && isPlainNumber(normalizedExpected)) {
     return Number(normalizedGiven) === Number(normalizedExpected);
   }
+  const givenNumber = extractNumericAnswer(normalizedGiven);
+  const expectedNumber = extractNumericAnswer(normalizedExpected);
+  if (givenNumber !== null && expectedNumber !== null) {
+    return Number(givenNumber) === Number(expectedNumber);
+  }
   return false;
 }
 
 function isPlainNumber(value) {
   return /^-?\d+(?:\.\d+)?$/.test(String(value));
+}
+
+function extractNumericAnswer(value) {
+  const text = normalizeAnswer(value)
+    .replace(/[()（）]/g, "")
+    .replace(/答案是/g, "");
+  const match = text.match(/^-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const rest = text.slice(match[0].length);
+  if (!rest) return match[0];
+  return /^[\u4e00-\u9fff]+$/.test(rest) ? match[0] : null;
 }
 
 function grantReward() {
@@ -8360,11 +8457,11 @@ function whackHole(index) {
 function whackActiveHole() {
   const battle = state.battle;
   if (!battle || battle.mode !== "whack" || battle.ended || battle.waitingToStart) return;
-  swingWhackHammer();
   if (battle.bossVisible && battle.activeHole >= 0) {
     whackHole(battle.activeHole);
     return;
   }
+  swingWhackHammer();
   battleArena.classList.remove("whack-empty");
   void battleArena.offsetWidth;
   battleArena.classList.add("whack-empty");
@@ -8374,6 +8471,7 @@ function whackActiveHole() {
 function swingWhackHammer() {
   const hammer = battleArena.querySelector("#whackCursor");
   if (!hammer) return;
+  playSfx("hammer");
   hammer.classList.remove("swing");
   void hammer.offsetWidth;
   hammer.classList.add("swing");
@@ -8413,6 +8511,7 @@ function throwWhackFireball() {
   if (!battle || battle.mode !== "whack" || battle.ended || !battle.bossVisible) return;
   const active = battleArena.querySelector(".whack-hole.active");
   if (!active) return;
+  playSfx("fireball");
   const arenaRect = battleArena.getBoundingClientRect();
   const rect = active.getBoundingClientRect();
   const fireball = document.createElement("div");
@@ -8495,6 +8594,7 @@ function playerShoot() {
   if (!battle || battle.ended) return;
   const now = performance.now();
   if (now - battle.lastShot < 360) return;
+  playSfx("fireball");
   battle.lastShot = now;
   const dx = battle.boss.x - battle.player.x;
   const dy = battle.boss.y - battle.player.y;
@@ -8514,6 +8614,7 @@ function playerShoot() {
 
 function shootBossFireball() {
   const battle = state.battle;
+  playSfx("fireball");
   const dx = battle.player.x - battle.boss.x;
   const dy = battle.player.y - battle.boss.y;
   const dist = Math.hypot(dx, dy) || 1;
@@ -8688,6 +8789,7 @@ function finishBattle(win) {
       showClearModal(next);
     }, battleMode === "timeRitual" ? 2300 : 1050);
   } else {
+    playSfx("fail");
     state.retryNeeded = 3;
     state.bossTauntShown = false;
     state.bossReadyMessageShown = false;
@@ -8799,6 +8901,8 @@ bossNode.addEventListener("click", (event) => {
 
 islandButtons.forEach((button) => button.addEventListener("click", () => resetIsland(button.dataset.island)));
 soundToggle?.addEventListener("click", toggleSound);
+window.addEventListener("pointerdown", unlockMusicPlayback, { once: true });
+window.addEventListener("keydown", unlockMusicPlayback, { once: true });
 bossButton.addEventListener("click", () => {
   moveHeroToElement(bossNode);
   window.setTimeout(startBossBattle, 560);
@@ -8969,6 +9073,8 @@ skipIntro.addEventListener("click", () => finishIntro(true));
 
 resetIsland("multiply");
 runIntro();
+updateSoundButton();
+startMusic();
 
 </script>
   </body>
