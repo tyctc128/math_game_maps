@@ -1,4 +1,29 @@
 const QUESTIONS_PER_ISLAND = 8;
+const DEVICE_PROFILE = detectDeviceProfile();
+let deviceMode = getStoredDeviceMode() || DEVICE_PROFILE.defaultMode;
+const BATTLE_CONFIG = {
+  desktop: {
+    frameInterval: 0,
+    maxProjectiles: 14,
+    uiInterval: 0,
+    playerSpeed: 1.25,
+    duelBossShotInterval: null,
+    timeBossShotBase: 1050,
+    timeBossShotJitter: 780,
+    restartAnimations: true
+  },
+  mobile: {
+    frameInterval: 1000 / 30,
+    maxProjectiles: 6,
+    uiInterval: 140,
+    playerSpeed: 1.7,
+    duelBossShotInterval: 1250,
+    timeBossShotBase: 1650,
+    timeBossShotJitter: 900,
+    restartAnimations: false
+  }
+};
+if (!BATTLE_CONFIG[deviceMode]) deviceMode = DEVICE_PROFILE.defaultMode;
 
 const islandOrder = ["multiply", "decimal", "time"];
 const rewardTypes = {
@@ -127,6 +152,76 @@ const audio = {
   unlocked: false,
   sfxVolume: 0.48
 };
+
+function detectDeviceProfile() {
+  const ua = navigator.userAgent || "";
+  const maxTouchPoints = navigator.maxTouchPoints || 0;
+  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches || false;
+  const iosLike = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && maxTouchPoints > 1);
+  const tabletSize = Math.min(window.innerWidth || 0, window.innerHeight || 0) >= 600 && Math.max(window.innerWidth || 0, window.innerHeight || 0) <= 1400;
+  const touchLikely = maxTouchPoints > 1 || coarse;
+  return {
+    iosLike,
+    coarse,
+    touchLikely,
+    tabletSize,
+    defaultMode: iosLike || coarse || (touchLikely && tabletSize) ? "mobile" : "desktop"
+  };
+}
+
+function getBattleConfig() {
+  return BATTLE_CONFIG[deviceMode] || BATTLE_CONFIG.desktop;
+}
+
+function getStoredDeviceMode() {
+  try {
+    return localStorage.getItem("mathAdventureDeviceMode");
+  } catch {
+    return null;
+  }
+}
+
+function storeDeviceMode(mode) {
+  try {
+    localStorage.setItem("mathAdventureDeviceMode", mode);
+  } catch {
+    // File and private-browser modes may block storage; the runtime mode still changes.
+  }
+}
+
+function isMobileBattleMode() {
+  return deviceMode === "mobile";
+}
+
+function applyDeviceMode() {
+  document.documentElement.classList.toggle("device-mobile", isMobileBattleMode());
+  document.documentElement.classList.toggle("device-desktop", !isMobileBattleMode());
+  document.documentElement.classList.toggle("low-power-battle", isMobileBattleMode());
+  const toggle = createDeviceModeToggle();
+  const current = document.querySelector("#deviceModeToggle");
+  if (current) current.replaceWith(toggle);
+  else document.querySelector(".hud")?.append(toggle);
+}
+
+function createDeviceModeToggle() {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.id = "deviceModeToggle";
+  button.className = "device-mode-toggle";
+  button.textContent = isMobileBattleMode() ? "平板模式" : "電腦模式";
+  button.setAttribute("aria-label", "切換電腦或平板操作模式");
+  button.addEventListener("click", () => {
+    deviceMode = isMobileBattleMode() ? "desktop" : "mobile";
+    storeDeviceMode(deviceMode);
+    applyDeviceMode();
+    if (state.battle && !state.battle.ended) {
+      battleStatus.textContent = isMobileBattleMode()
+        ? "已切換平板模式：可在戰鬥場地拖曳移動，點按攻擊。"
+        : "已切換電腦模式：可用方向鍵或 WASD 移動，按發射攻擊。";
+    }
+  });
+  return button;
+}
 
 const introMessage = "勇者，島上的寶物被怪獸封印了。\n點亮發光的寶箱、橋、石門和村民，回答題目取得武器與寶物。\n第一次每座島答對 8 題後，就會進入決鬥場。\n如果決鬥失敗，回到本關再答對 3 題就能重挑戰。\n打敗 Boss，下一座島才會開啟。";
 const decimalIntroMessage = "小數湖的風變強了！\n這一關會變成空中卷軸冒險。\n用滑鼠或手指控制勇者飛行，避開怪物。\n碰到飛來的寶物會直接收下。\n碰到飛來的數學題時，畫面會暫停，答完再繼續飛。";
@@ -1077,6 +1172,7 @@ function makeMultiplyQuestion() {
 function makeDecimalQuestion() {
   const mode = Math.floor(Math.random() * 4);
   const oneDecimal = (n) => (Math.round(n * 10) / 10).toString();
+  const cleanDecimal = (n) => (Math.round(n * 1000) / 1000).toString().replace(/\.0+$/, "");
   if (mode === 0) {
     const a = (10 + Math.floor(Math.random() * 70)) / 10;
     const b = (5 + Math.floor(Math.random() * 30)) / 10;
@@ -1092,7 +1188,7 @@ function makeDecimalQuestion() {
   if (mode === 2) {
     const a = [0.25, 0.5, 1.5, 2.5][Math.floor(Math.random() * 4)];
     const b = 2 + Math.floor(Math.random() * 4);
-    const ans = oneDecimal(a * b).replace(".0", "");
+    const ans = cleanDecimal(a * b);
     return { type: "fill", prompt: `${a} × ${b} = ?`, answer: ans, explain: `${a} × ${b} = ${ans}。` };
   }
   const values = [Math.random(), Math.random(), Math.random(), Math.random()].map((v) => (Math.round(v * 100) / 100).toFixed(2));
@@ -1216,7 +1312,13 @@ function getExpectedAnswers(question) {
   const answers = String(question.answer).includes("\uFF0C") || String(question.answer).includes(",")
     ? String(question.answer).split(/[\uFF0C,]/).map((item) => item.trim()).filter(Boolean)
     : [String(question.answer)];
-  if (question.suffix && /^[\uFF0C,\u3001、]/.test(String(question.suffix))) {
+  if (question.suffix && /^\s*\//.test(String(question.suffix))) {
+    const suffixParts = String(question.suffix).split(/[\uFF0C,\u3001、,]/).map((item) => item.trim()).filter(Boolean);
+    if (suffixParts.length) {
+      answers[0] = `${answers[0]}${suffixParts[0]}`;
+      answers.push(...suffixParts.slice(1));
+    }
+  } else if (question.suffix && /^[\uFF0C,\u3001、]/.test(String(question.suffix))) {
     const extra = String(question.suffix).replace(/^[\uFF0C,\u3001、]\s*/, "").trim();
     if (extra) answers.push(...extra.split(/[\uFF0C,\u3001、]/).map((item) => item.trim()).filter(Boolean));
   } else if (question.suffix && /[\uFF0C,\u3001、]/.test(String(question.suffix))) {
@@ -1497,6 +1599,10 @@ function beginBossBattle() {
     player: { x: 18, y: 72, radius: 5 },
     boss: { x: 78, y: 30, radius: 8 },
     projectiles: [],
+    touchTarget: null,
+    lastUiUpdate: 0,
+    lastRenderedPlayerHp: -1,
+    lastRenderedBossHp: -1,
     lastShot: 0,
     lastBossShot: 0,
     lastHit: 0,
@@ -1602,6 +1708,9 @@ function startWhackBossBattle() {
     attackAt: 0,
     attackPower: ability.attack,
     bossDamage: 1,
+    lastUiUpdate: 0,
+    lastRenderedPlayerHp: -1,
+    lastRenderedBossHp: -1,
     frameId: null,
     lastFrame: performance.now()
   };
@@ -1633,6 +1742,11 @@ function startTimeBossBattle() {
     player: { x: 50, y: 76, radius: 4.6 },
     boss: { x: 50, y: 35, radius: 7.2 },
     projectiles: [],
+    touchTarget: null,
+    towerEls: [],
+    lastUiUpdate: 0,
+    lastRenderedPlayerHp: -1,
+    lastRenderedBossHp: -1,
     towers: createTimeTowerState(),
     acceleratedHours: 0,
     nearestTower: null,
@@ -1702,6 +1816,7 @@ function setupTimeBossArena() {
     });
     towerLayer.append(button);
   });
+  state.battle.towerEls = [...towerLayer.querySelectorAll(".time-tower")];
 
   const instruction = document.createElement("div");
   instruction.className = "battle-instruction time-boss-instruction";
@@ -1744,11 +1859,16 @@ function startTimeBossRound() {
 function runBattleFrame(now) {
   const battle = state.battle;
   if (!battle || battle.ended) return;
-  const dt = Math.min(40, now - battle.lastFrame) / 16.67;
+  const config = getBattleConfig();
+  if (config.frameInterval && battle.lastFrame && now - battle.lastFrame < config.frameInterval) {
+    battle.frameId = requestAnimationFrame(runBattleFrame);
+    return;
+  }
+  const dt = Math.min(50, now - battle.lastFrame) / 16.67;
   battle.lastFrame = now;
   if (battle.mode === "whack") {
     updateWhackBattle(now);
-    updateBattleBars();
+    updateBattleBars(now);
     battle.frameId = requestAnimationFrame(runBattleFrame);
     return;
   }
@@ -1756,7 +1876,7 @@ function runBattleFrame(now) {
     updateTimeBossBattle(dt, now);
     updateProjectiles(dt);
     renderBattlePositions();
-    updateBattleBars();
+    updateBattleBars(now);
     updateTimeRitualUi(now);
     battle.frameId = requestAnimationFrame(runBattleFrame);
     return;
@@ -1765,7 +1885,7 @@ function runBattleFrame(now) {
   updateBossMovement(dt, now);
   updateProjectiles(dt);
   renderBattlePositions();
-  updateBattleBars();
+  updateBattleBars(now);
   battle.frameId = requestAnimationFrame(runBattleFrame);
 }
 
@@ -1843,7 +1963,9 @@ function updateTimeBossBattle(dt, now) {
   updatePlayerMovement(dt);
   updateTimeBossMovement(dt, now);
   updateNearestTimeTower(now);
-  if (now - battle.lastBossShot > 1050 + Math.random() * 780) {
+  const config = getBattleConfig();
+  const shotInterval = config.timeBossShotBase + Math.random() * config.timeBossShotJitter;
+  if (now - battle.lastBossShot > shotInterval) {
     shootBossFireball();
     battle.lastBossShot = now;
   }
@@ -1879,7 +2001,7 @@ function updateNearestTimeTower(now = performance.now()) {
   });
   battle.nearestTower = nearestDistance <= 9.5 ? nearest : null;
 
-  battleArena.querySelectorAll(".time-tower").forEach((towerEl) => {
+  (battle.towerEls || []).forEach((towerEl) => {
     const index = Number(towerEl.dataset.tower);
     const cooling = now < battle.towers[index].readyAt;
     towerEl.classList.toggle("near", battle.nearestTower === index && !cooling);
@@ -1940,7 +2062,7 @@ function setTimeBossAge() {
   const stage = Math.min(3, Math.floor(battle.acceleratedHours / 8));
   arenaBossImage.src = getTimeBossAgeImage(stage);
   arenaBoss.classList.remove("aging");
-  void arenaBoss.offsetWidth;
+  if (getBattleConfig().restartAnimations) void arenaBoss.offsetWidth;
   arenaBoss.classList.add("aging");
 }
 
@@ -1999,7 +2121,7 @@ function whackHole(index) {
   swingWhackHammer();
   const hole = battleArena.querySelector(`.whack-hole[data-hole="${index}"]`);
   hole?.classList.remove("hit");
-  void hole?.offsetWidth;
+  if (getBattleConfig().restartAnimations) void hole?.offsetWidth;
   hole?.classList.add("hit");
   if (!battle.bossVisible || battle.activeHole !== index) {
     battleStatus.textContent = "敲空了，等 Boss 冒出來再打！";
@@ -2029,7 +2151,7 @@ function whackActiveHole() {
   }
   swingWhackHammer();
   battleArena.classList.remove("whack-empty");
-  void battleArena.offsetWidth;
+  if (getBattleConfig().restartAnimations) void battleArena.offsetWidth;
   battleArena.classList.add("whack-empty");
   battleStatus.textContent = "Boss 還沒冒出來，等牠出現再揮槌！";
 }
@@ -2039,7 +2161,7 @@ function swingWhackHammer() {
   if (!hammer) return;
   playSfx("hammer");
   hammer.classList.remove("swing");
-  void hammer.offsetWidth;
+  if (getBattleConfig().restartAnimations) void hammer.offsetWidth;
   hammer.classList.add("swing");
 }
 
@@ -2072,6 +2194,40 @@ battleArena.addEventListener("pointerdown", (event) => {
   else whackActiveHole();
 });
 
+battleArena.addEventListener("pointerdown", (event) => {
+  const battle = state.battle;
+  if (!battle || battle.ended || battle.waitingToStart || battle.mode === "whack") return;
+  if (event.target.closest(".battle-instruction, .time-tower, button")) return;
+  event.preventDefault();
+  setBattleTouchTarget(event);
+  battleArena.setPointerCapture?.(event.pointerId);
+});
+
+battleArena.addEventListener("pointermove", (event) => {
+  const battle = state.battle;
+  if (!battle || battle.ended || battle.waitingToStart || battle.mode === "whack") return;
+  if (!(event.buttons & 1) && event.pointerType !== "touch") return;
+  event.preventDefault();
+  setBattleTouchTarget(event);
+});
+
+battleArena.addEventListener("pointerup", clearBattleTouchTarget);
+battleArena.addEventListener("pointercancel", clearBattleTouchTarget);
+
+function setBattleTouchTarget(event) {
+  const battle = state.battle;
+  if (!battle) return;
+  const rect = battleArena.getBoundingClientRect();
+  battle.touchTarget = {
+    x: clamp(((event.clientX - rect.left) / rect.width) * 100, 8, 92),
+    y: clamp(((event.clientY - rect.top) / rect.height) * 100, 16, 88)
+  };
+}
+
+function clearBattleTouchTarget() {
+  if (state.battle) state.battle.touchTarget = null;
+}
+
 function throwWhackFireball() {
   const battle = state.battle;
   if (!battle || battle.mode !== "whack" || battle.ended || !battle.bossVisible) return;
@@ -2093,16 +2249,26 @@ function throwWhackFireball() {
 
 function updatePlayerMovement(dt) {
   const battle = state.battle;
-  const speed = 1.25 * dt;
+  const speed = getBattleConfig().playerSpeed * dt;
   let dx = 0;
   let dy = 0;
   if (heldMoves.has("left")) dx -= 1;
   if (heldMoves.has("right")) dx += 1;
   if (heldMoves.has("up")) dy -= 1;
   if (heldMoves.has("down")) dy += 1;
+  if (battle.touchTarget) {
+    const targetDx = battle.touchTarget.x - battle.player.x;
+    const targetDy = battle.touchTarget.y - battle.player.y;
+    const targetDist = Math.hypot(targetDx, targetDy);
+    if (targetDist > 1.2) {
+      dx += targetDx / targetDist;
+      dy += targetDy / targetDist;
+    }
+  }
   if (dx && dy) {
-    dx *= 0.707;
-    dy *= 0.707;
+    const mag = Math.hypot(dx, dy) || 1;
+    dx /= mag;
+    dy /= mag;
   }
   battle.player.x = clamp(battle.player.x + dx * speed, 8, 92);
   battle.player.y = clamp(battle.player.y + dy * speed, 16, 88);
@@ -2123,7 +2289,9 @@ function updateBossMovement(dt, now) {
     battle.lastHit = now;
   }
 
-  if (now - battle.lastBossShot > Math.max(480, 820 - islandOrder.indexOf(state.island) * 130)) {
+  const config = getBattleConfig();
+  const bossShotInterval = config.duelBossShotInterval || Math.max(480, 820 - islandOrder.indexOf(state.island) * 130);
+  if (now - battle.lastBossShot > bossShotInterval) {
     shootBossFireball();
     battle.lastBossShot = now;
   }
@@ -2135,8 +2303,7 @@ function updateProjectiles(dt) {
     shot.x += shot.vx * dt;
     shot.y += shot.vy * dt;
     shot.life -= dt;
-    shot.el.style.left = `${shot.x}%`;
-    shot.el.style.top = `${shot.y}%`;
+    positionBattleElement(shot.el, shot.x, shot.y);
 
     if (shot.owner === "player" && distance(shot, battle.boss) < battle.boss.radius + shot.radius) {
       hitBoss(shot.power, shot.vx, shot.vy);
@@ -2197,13 +2364,18 @@ function shootBossFireball() {
   });
 }
 
-function createProjectile(config) {
+function createProjectile(projectileConfig) {
+  const battle = state.battle;
+  const battleConfig = getBattleConfig();
+  if (!battle || battle.projectiles.length >= battleConfig.maxProjectiles) {
+    const old = battle?.projectiles.shift();
+    old?.el.remove();
+  }
   const el = document.createElement("div");
-  el.className = `projectile ${config.className}`;
-  el.style.left = `${config.x}%`;
-  el.style.top = `${config.y}%`;
+  el.className = `projectile ${projectileConfig.className}`;
+  positionBattleElement(el, projectileConfig.x, projectileConfig.y);
   battleArena.append(el);
-  state.battle.projectiles.push({ ...config, el });
+  state.battle.projectiles.push({ ...projectileConfig, el });
 }
 
 function hitBoss(power, vx, vy) {
@@ -2229,7 +2401,7 @@ function hurtPlayer(power) {
     playSfx("shield");
     if (battle.mode === "whack") {
       battleArena.classList.remove("whack-damaged");
-      void battleArena.offsetWidth;
+      if (getBattleConfig().restartAnimations) void battleArena.offsetWidth;
       battleArena.classList.add("whack-damaged");
     } else {
       flashEntity(arenaPlayer);
@@ -2241,7 +2413,7 @@ function hurtPlayer(power) {
   battleStatus.textContent = `被火球打中了，失去 ${power} 點血量。`;
   if (battle.mode === "whack") {
     battleArena.classList.remove("whack-damaged");
-    void battleArena.offsetWidth;
+    if (getBattleConfig().restartAnimations) void battleArena.offsetWidth;
     battleArena.classList.add("whack-damaged");
   } else {
     flashEntity(arenaPlayer);
@@ -2266,10 +2438,14 @@ function knockBackPlayer(dx, dy, force) {
 
 function renderBattlePositions() {
   const battle = state.battle;
-  arenaPlayer.style.left = `${battle.player.x}%`;
-  arenaPlayer.style.top = `${battle.player.y}%`;
-  arenaBoss.style.left = `${battle.boss.x}%`;
-  arenaBoss.style.top = `${battle.boss.y}%`;
+  positionBattleElement(arenaPlayer, battle.player.x, battle.player.y);
+  positionBattleElement(arenaBoss, battle.boss.x, battle.boss.y);
+}
+
+function positionBattleElement(el, x, y) {
+  el.style.left = `${x}%`;
+  el.style.top = `${y}%`;
+  el.style.transform = "translate3d(-50%, -50%, 0)";
 }
 
 function clearArenaProjectiles() {
@@ -2293,7 +2469,7 @@ function stopBattleLoop() {
 
 function flashEntity(el) {
   el.classList.remove("hit");
-  void el.offsetWidth;
+  if (getBattleConfig().restartAnimations) void el.offsetWidth;
   el.classList.add("hit");
 }
 
@@ -2319,6 +2495,8 @@ function finishBattle(win) {
   const battle = state.battle;
   if (!battle || battle.ended) return;
   battle.ended = true;
+  heldMoves.clear();
+  battle.touchTarget = null;
   if (battle.frameId) cancelAnimationFrame(battle.frameId);
   const battleMode = battle.mode || "duel";
   if (battle.mode === "whack") {
@@ -2412,10 +2590,20 @@ function unlockNextIsland() {
   });
 }
 
-function updateBattleBars() {
+function updateBattleBars(now = performance.now()) {
   const battle = state.battle;
-  playerHpBar.style.width = `${(battle.playerHp / battle.playerMaxHp) * 100}%`;
-  bossHpBar.style.width = `${(battle.bossHp / battle.bossMaxHp) * 100}%`;
+  if (!battle) return;
+  const config = getBattleConfig();
+  if (config.uiInterval && now - (battle.lastUiUpdate || 0) < config.uiInterval) return;
+  battle.lastUiUpdate = now;
+  if (battle.lastRenderedPlayerHp !== battle.playerHp) {
+    playerHpBar.style.width = `${(battle.playerHp / battle.playerMaxHp) * 100}%`;
+    battle.lastRenderedPlayerHp = battle.playerHp;
+  }
+  if (battle.lastRenderedBossHp !== battle.bossHp) {
+    bossHpBar.style.width = `${(battle.bossHp / battle.bossMaxHp) * 100}%`;
+    battle.lastRenderedBossHp = battle.bossHp;
+  }
 }
 
 mapArt.addEventListener("click", (event) => {
@@ -2500,9 +2688,21 @@ clearNext.addEventListener("click", () => {
   }
 });
 
-fireButton.addEventListener("click", () => {
+let lastBattleActionPointerAt = 0;
+
+function useBattleActionButton() {
   if (state.battle?.mode === "timeRitual") accelerateNearestTimeTower();
   else playerShoot();
+}
+
+fireButton.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  lastBattleActionPointerAt = performance.now();
+  useBattleActionButton();
+});
+fireButton.addEventListener("click", () => {
+  if (performance.now() - lastBattleActionPointerAt < 450) return;
+  useBattleActionButton();
 });
 moveButtons.forEach((button) => {
   const dir = button.dataset.move;
@@ -2637,6 +2837,7 @@ function typeIntroText(message, buttonText) {
 startIntro.addEventListener("click", () => finishIntro(false));
 skipIntro.addEventListener("click", () => finishIntro(true));
 
+applyDeviceMode();
 resetIsland("multiply");
 runIntro();
 updateSoundButton();
