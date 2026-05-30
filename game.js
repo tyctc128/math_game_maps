@@ -13,12 +13,12 @@ const BATTLE_CONFIG = {
     restartAnimations: true
   },
   mobile: {
-    frameInterval: 1000 / 30,
-    maxProjectiles: 6,
-    uiInterval: 140,
-    playerSpeed: 1.7,
-    duelBossShotInterval: 1250,
-    timeBossShotBase: 1650,
+    frameInterval: 250,
+    maxProjectiles: 0,
+    uiInterval: 220,
+    playerSpeed: 3.2,
+    duelBossShotInterval: 2600,
+    timeBossShotBase: 3000,
     timeBossShotJitter: 900,
     restartAnimations: false
   }
@@ -109,6 +109,7 @@ const nextQuestion = document.querySelector("#nextQuestion");
 const closeQuestion = document.querySelector("#closeQuestion");
 
 const bossModal = document.querySelector("#bossModal");
+const bossCard = document.querySelector(".boss-card");
 const bossTitle = document.querySelector("#bossTitle");
 const bossName = document.querySelector("#bossName");
 const battleArena = document.querySelector("#battleArena");
@@ -1258,7 +1259,7 @@ function formatPrompt(prompt) {
     .replace(/(想想看，)/g, "\n$1")
     .replace(/；/g, "；\n")
     .replace(/。(?=\S)/g, "。\n")
-    .replace(/\)(?=\S)/g, ")\n")
+    .replace(/\)(?=\d+(?:\.\d+)?[×÷+\-])/g, ")\n")
     .replace(/([？?。])(?=\S)/g, "$1\n")
     .replace(/([，,])(?=\S)/g, "$1\n");
 }
@@ -1268,6 +1269,7 @@ function splitJoinedEquations(prompt) {
     .replace(/＝□(?=\d+[×÷+\-])/g, "＝□\n")
     .replace(/＝■(?=\d+[×÷+\-])/g, "＝■\n")
     .replace(/(÷■＝5)(?=5×■)/g, "$1\n")
+    .replace(/([×÷+\-]\(\s*\)＝\d+(?:\.\d+)?)(?=\d+(?:\.\d+)?[×÷+\-])/g, "$1\n")
     .replace(/(＝□)(?=上面)/g, "$1\n");
   const expressionPattern = /(\d+(?:\.\d+)?)([×÷+\-])(\d+(?:\.\d+)?)＝/g;
   let guard = 0;
@@ -1605,6 +1607,7 @@ function beginBossBattle() {
     lastRenderedBossHp: -1,
     lastShot: 0,
     lastBossShot: 0,
+    nextMobileBossAttack: 0,
     lastHit: 0,
     attackPower: ability.attack,
     bossDamage: getBossDamage(),
@@ -1622,8 +1625,11 @@ function beginBossBattle() {
   battleStatus.textContent = "先看完說明，按確認後開始。";
   endBattle.classList.add("hidden");
   battleActions.classList.add("hidden");
+  battleActions.classList.remove("time-actions", "duel-actions", "whack-actions");
   bossModal.classList.remove("hidden");
   clearArenaProjectiles();
+  battleActions.classList.add("duel-actions");
+  bossCard?.classList.add("duel-boss-layout");
   showDuelInstruction(ability.weapon);
   updateBattleBars();
   renderBattlePositions();
@@ -1682,7 +1688,10 @@ function startDuelRound() {
   if (!battle || battle.mode === "whack") return;
   battle.waitingToStart = false;
   battle.lastFrame = performance.now();
+  battle.nextMobileBossAttack = performance.now() + 2600;
   battleArena.querySelector(".battle-instruction")?.remove();
+  battleActions.classList.remove("time-actions", "whack-actions");
+  battleActions.classList.add("duel-actions");
   battleActions.classList.remove("hidden");
   battleStatus.textContent = `開始決鬥！移動閃避攻擊，按「發射」攻擊 Boss。`;
   battle.frameId = requestAnimationFrame(runBattleFrame);
@@ -1723,6 +1732,9 @@ function startWhackBossBattle() {
   battleStatus.textContent = "先看完說明，按確認後開始。";
   endBattle.classList.add("hidden");
   battleActions.classList.add("hidden");
+  battleActions.classList.remove("time-actions", "duel-actions", "whack-actions");
+  bossCard?.classList.remove("time-boss-layout", "duel-boss-layout");
+  bossCard?.classList.add("whack-boss-layout");
   bossModal.classList.remove("hidden");
   setupWhackArena();
   updateBattleBars();
@@ -1751,6 +1763,7 @@ function startTimeBossBattle() {
     acceleratedHours: 0,
     nearestTower: null,
     lastBossShot: 0,
+    nextMobileBossAttack: 0,
     lastHit: 0,
     bossDamage: 1,
     waitingToStart: true,
@@ -1766,6 +1779,10 @@ function startTimeBossBattle() {
   battleStatus.textContent = "先看完說明，按確認後開始。";
   endBattle.classList.add("hidden");
   battleActions.classList.add("hidden");
+  battleActions.classList.remove("duel-actions", "whack-actions");
+  battleActions.classList.add("time-actions");
+  bossCard?.classList.remove("duel-boss-layout", "whack-boss-layout");
+  bossCard?.classList.add("time-boss-layout");
   bossModal.classList.remove("hidden");
   setupTimeBossArena();
   updateBattleBars();
@@ -1787,6 +1804,8 @@ function createTimeTowerState() {
 function setupTimeBossArena() {
   clearArenaProjectiles();
   battleArena.classList.add("time-boss-mode");
+  battleActions.classList.add("time-actions");
+  bossCard?.classList.add("time-boss-layout");
   battleArena.querySelector(".arena-hint").textContent = "靠近發光時鐘塔，按空白鍵或點塔撥快時間。";
   arenaPlayer.querySelector("img").src = "assets/generated/time-hero-walk.png";
 
@@ -1851,7 +1870,10 @@ function startTimeBossRound() {
   battle.waitingToStart = false;
   battle.lastFrame = performance.now();
   battle.lastBossShot = performance.now() + 650;
+  battle.nextMobileBossAttack = performance.now() + 2800;
   battleArena.querySelector(".battle-instruction")?.remove();
+  battleActions.classList.remove("duel-actions", "whack-actions");
+  battleActions.classList.add("time-actions");
   battleActions.classList.remove("hidden");
   battleStatus.textContent = "靠近時鐘塔並撥快時間，累積 24 小時讓 Boss 衰老。";
 }
@@ -1873,11 +1895,24 @@ function runBattleFrame(now) {
     return;
   }
   if (battle.mode === "timeRitual") {
+    if (isMobileBattleMode()) {
+      updateMobileTimeBossBattle(now);
+      updateBattleBars(now);
+      updateTimeRitualUi(now);
+      battle.frameId = requestAnimationFrame(runBattleFrame);
+      return;
+    }
     updateTimeBossBattle(dt, now);
     updateProjectiles(dt);
     renderBattlePositions();
     updateBattleBars(now);
     updateTimeRitualUi(now);
+    battle.frameId = requestAnimationFrame(runBattleFrame);
+    return;
+  }
+  if (isMobileBattleMode()) {
+    updateMobileDuelBattle(now);
+    updateBattleBars(now);
     battle.frameId = requestAnimationFrame(runBattleFrame);
     return;
   }
@@ -1892,6 +1927,8 @@ function runBattleFrame(now) {
 function setupWhackArena() {
   clearArenaProjectiles();
   battleArena.classList.add("whack-mode");
+  battleActions.classList.add("whack-actions");
+  bossCard?.classList.add("whack-boss-layout");
   const hammer = document.createElement("div");
   hammer.className = "whack-cursor";
   hammer.id = "whackCursor";
@@ -1957,6 +1994,25 @@ function startWhackRound() {
   battleStatus.textContent = "移動槌子，看到 Boss 冒出來就點擊揮槌。";
 }
 
+function updateMobileDuelBattle(now) {
+  const battle = state.battle;
+  if (battle.waitingToStart) return;
+  renderBattlePositions();
+  if (now >= (battle.nextMobileBossAttack || 0)) {
+    hurtPlayer(battle.bossDamage);
+    battle.nextMobileBossAttack = now + 2600;
+  }
+}
+
+function updateMobileTimeBossBattle(now) {
+  const battle = state.battle;
+  if (battle.waitingToStart) return;
+  if (now >= (battle.nextMobileBossAttack || 0)) {
+    hurtPlayer(1);
+    battle.nextMobileBossAttack = now + 3000;
+  }
+}
+
 function updateTimeBossBattle(dt, now) {
   const battle = state.battle;
   if (battle.waitingToStart) return;
@@ -2013,7 +2069,17 @@ function accelerateNearestTimeTower() {
   const battle = state.battle;
   if (!battle || battle.mode !== "timeRitual") return;
   updateNearestTimeTower();
-  if (battle.nearestTower === null) {
+  if (isMobileBattleMode() && battle.nearestTower === null) {
+    const now = performance.now();
+    const index = battle.towers.findIndex((tower) => now >= tower.readyAt);
+    if (index >= 0) {
+      accelerateTimeTower(index);
+      return;
+    }
+    battleStatus.textContent = "時鐘塔還在冷卻，等它重新發光再點。";
+    return;
+  }
+  if (!isMobileBattleMode() && battle.nearestTower === null) {
     battleStatus.textContent = "請先靠近發光的時鐘塔，再撥快時間。";
     return;
   }
@@ -2026,7 +2092,7 @@ function accelerateTimeTower(index) {
   const tower = battle.towers[index];
   const now = performance.now();
   const distanceToTower = Math.hypot(tower.x - battle.player.x, tower.y - battle.player.y);
-  if (distanceToTower > 12) {
+  if (!isMobileBattleMode() && distanceToTower > 12) {
     battleStatus.textContent = "離時鐘塔太遠了，靠近一點才能撥動。";
     return;
   }
@@ -2188,6 +2254,8 @@ battleArena.addEventListener("pointermove", updateWhackHammerFromPointer);
 battleArena.addEventListener("pointerdown", (event) => {
   if (!state.battle || state.battle.mode !== "whack") return;
   if (event.target.closest(".whack-instruction")) return;
+  event.preventDefault();
+  event.stopPropagation();
   updateWhackHammerFromPointer(event);
   const hole = event.target.closest(".whack-hole");
   if (hole) whackHole(Number(hole.dataset.hole));
@@ -2231,6 +2299,10 @@ function clearBattleTouchTarget() {
 function throwWhackFireball() {
   const battle = state.battle;
   if (!battle || battle.mode !== "whack" || battle.ended || !battle.bossVisible) return;
+  if (isMobileBattleMode()) {
+    hurtPlayer(battle.bossDamage);
+    return;
+  }
   const active = battleArena.querySelector(".whack-hole.active");
   if (!active) return;
   playSfx("fireball");
@@ -2329,6 +2401,10 @@ function playerShoot() {
   if (now - battle.lastShot < 360) return;
   playSfx("fireball");
   battle.lastShot = now;
+  if (isMobileBattleMode() && battle.mode !== "timeRitual") {
+    hitBoss(battle.attackPower + (state.maxCombo >= 3 ? 1 : 0), 1, -0.25);
+    return;
+  }
   const dx = battle.boss.x - battle.player.x;
   const dy = battle.boss.y - battle.player.y;
   const dist = Math.hypot(dx, dy) || 1;
@@ -2347,6 +2423,10 @@ function playerShoot() {
 
 function shootBossFireball() {
   const battle = state.battle;
+  if (isMobileBattleMode()) {
+    hurtPlayer(battle.bossDamage);
+    return;
+  }
   playSfx("fireball");
   const dx = battle.player.x - battle.boss.x;
   const dy = battle.player.y - battle.boss.y;
@@ -2367,6 +2447,7 @@ function shootBossFireball() {
 function createProjectile(projectileConfig) {
   const battle = state.battle;
   const battleConfig = getBattleConfig();
+  if (!battle || battleConfig.maxProjectiles <= 0) return;
   if (!battle || battle.projectiles.length >= battleConfig.maxProjectiles) {
     const old = battle?.projectiles.shift();
     old?.el.remove();
@@ -2451,6 +2532,8 @@ function positionBattleElement(el, x, y) {
 function clearArenaProjectiles() {
   battleArena.querySelectorAll(".projectile, .whack-grid, .whack-fireball, .whack-cursor, .whack-instruction, .battle-instruction, .time-tower-layer, .time-ritual-meter, .time-pulse, .time-victory").forEach((el) => el.remove());
   battleArena.classList.remove("whack-mode", "whack-damaged", "whack-empty", "time-boss-mode");
+  battleActions.classList.remove("time-actions", "duel-actions", "whack-actions");
+  bossCard?.classList.remove("time-boss-layout", "duel-boss-layout", "whack-boss-layout");
   battleArena.querySelector(".arena-hint").textContent = "移動並發射武器，別讓 Boss 靠近。";
   fireButton.textContent = "發射";
 }
@@ -2657,6 +2740,18 @@ islandButtons.forEach((button) => button.addEventListener("click", () => resetIs
 soundToggle?.addEventListener("click", toggleSound);
 window.addEventListener("pointerdown", unlockMusicPlayback, { once: true });
 window.addEventListener("keydown", unlockMusicPlayback, { once: true });
+window.addEventListener("dblclick", (event) => {
+  if (isMobileBattleMode() && bossModal && !bossModal.classList.contains("hidden")) event.preventDefault();
+}, { passive: false });
+document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+document.addEventListener("gesturechange", (event) => event.preventDefault(), { passive: false });
+let lastTouchEndAt = 0;
+document.addEventListener("touchend", (event) => {
+  if (!isMobileBattleMode() || bossModal.classList.contains("hidden")) return;
+  const now = Date.now();
+  if (now - lastTouchEndAt < 420) event.preventDefault();
+  lastTouchEndAt = now;
+}, { passive: false });
 bossButton.addEventListener("click", () => {
   moveHeroToElement(bossNode);
   window.setTimeout(startBossBattle, 560);
@@ -2708,6 +2803,7 @@ moveButtons.forEach((button) => {
   const dir = button.dataset.move;
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    if (isMobileBattleMode()) nudgeBattlePlayer(dir);
     heldMoves.add(dir);
     button.setPointerCapture?.(event.pointerId);
   });
@@ -2715,6 +2811,18 @@ moveButtons.forEach((button) => {
   button.addEventListener("pointercancel", () => heldMoves.delete(dir));
   button.addEventListener("pointerleave", () => heldMoves.delete(dir));
 });
+
+function nudgeBattlePlayer(dir) {
+  const battle = state.battle;
+  if (!battle || battle.ended || battle.mode === "whack") return;
+  const step = battle.mode === "timeRitual" ? 7 : 9;
+  if (dir === "left") battle.player.x = clamp(battle.player.x - step, 8, 92);
+  if (dir === "right") battle.player.x = clamp(battle.player.x + step, 8, 92);
+  if (dir === "up") battle.player.y = clamp(battle.player.y - step, 16, 88);
+  if (dir === "down") battle.player.y = clamp(battle.player.y + step, 16, 88);
+  battle.touchTarget = null;
+  renderBattlePositions();
+}
 
 flightButtons.forEach((button) => {
   const dir = button.dataset.flightMove;

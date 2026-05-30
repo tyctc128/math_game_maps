@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>數學冒險島</title>
     <style>
 :root {
@@ -18,9 +18,20 @@
 
 * { box-sizing: border-box; }
 
+html.device-mobile,
+html.device-mobile body {
+  touch-action: manipulation;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none;
+  user-select: none;
   color: var(--ink);
   background:
     linear-gradient(180deg, rgba(8, 20, 34, 0.78), rgba(14, 30, 43, 0.62)),
@@ -1010,6 +1021,12 @@ h1 {
   word-break: break-word;
 }
 
+.device-mobile .question-card h2 {
+  font-size: clamp(1.35rem, 4.5vw, 2.15rem);
+  line-height: 1.45;
+  margin-top: 14px;
+}
+
 .answers {
   display: grid;
   grid-template-columns: repeat(2,minmax(0,1fr));
@@ -1129,6 +1146,17 @@ h1 {
   -webkit-tap-highlight-color: transparent;
 }
 
+.device-mobile .modal {
+  padding: 6px;
+}
+
+.device-mobile .boss-card {
+  position: relative;
+  height: calc(100dvh - 12px);
+  max-height: calc(100dvh - 12px);
+  overflow: hidden;
+}
+
 .device-mode-toggle {
   min-height: 44px;
   padding: 0 14px;
@@ -1152,8 +1180,11 @@ h1 {
 }
 
 .device-mobile .battle-scene {
-  height: min(68vh, 680px);
-  min-height: 460px;
+  height: 100%;
+  min-height: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.04), rgba(15,25,37,.24)),
+    url("assets/generated/math-islands-map.png");
 }
 
 .device-mobile .battle-scene.whack-mode {
@@ -1589,7 +1620,8 @@ h1 {
   border-radius: 999px;
   background: transparent;
   overflow: visible;
-  touch-action: manipulation;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .hole-shadow {
@@ -1777,6 +1809,16 @@ h1 {
   backdrop-filter: blur(8px);
 }
 
+.device-mobile .battle-bars {
+  left: 10px;
+  right: 10px;
+  top: 8px;
+  grid-template-columns: 46px minmax(0, 1fr) 74px minmax(0, 1fr);
+  gap: 6px;
+  padding: 7px 8px;
+  font-size: .84rem;
+}
+
 .battle-actions {
   display: grid;
   grid-template-columns: 1fr 160px;
@@ -1813,29 +1855,95 @@ h1 {
 }
 
 .device-mobile .battle-actions {
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin: 12px 14px 16px;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  z-index: 19;
+  grid-template-columns: auto minmax(220px, 1fr);
+  align-items: end;
+  gap: 10px;
+  margin: 0;
+  pointer-events: auto;
 }
 
 .device-mobile .move-pad {
-  grid-template-columns: repeat(3, minmax(72px, 92px));
-  gap: 10px;
+  grid-template-columns: repeat(3, 56px);
+  gap: 6px;
+  justify-content: start;
 }
 
 .device-mobile .move-pad button,
 .device-mobile .fire-button {
-  min-height: 72px;
-  font-size: 1.35rem;
+  min-height: 54px;
+  font-size: 1.18rem;
 }
 
 .device-mobile .fire-button {
-  min-height: 82px;
+  min-height: 68px;
+}
+
+.device-mobile .battle-actions.time-actions {
+  grid-template-columns: 1fr;
+}
+
+.device-mobile .battle-actions.time-actions .move-pad {
+  display: none;
+}
+
+.device-mobile .battle-actions.time-actions .fire-button {
+  min-height: 78px;
+  font-size: 1.28rem;
+}
+
+.device-mobile .boss-card #endBattle {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  z-index: 20;
+  margin: 0;
+  min-height: 64px;
 }
 
 .device-mobile .battle-status,
 .device-mobile #battleStatus {
-  font-size: 1.05rem;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 134px;
+  z-index: 18;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 246, 215, .92);
+  color: #3a2a1d;
+  font-size: .96rem;
+  font-weight: 900;
+  line-height: 1.35;
+  box-shadow: 0 8px 20px rgba(38, 24, 14, .18);
+}
+
+.device-mobile .boss-card.time-boss-layout #battleStatus {
+  bottom: 92px;
+}
+
+@media (max-width: 760px) {
+  .device-mobile .battle-actions:not(.time-actions) {
+    grid-template-columns: 1fr;
+  }
+
+  .device-mobile .battle-actions:not(.time-actions) .move-pad {
+    justify-content: center;
+  }
+
+  .device-mobile .battle-actions:not(.time-actions) .fire-button {
+    min-height: 58px;
+  }
+
+  .device-mobile .boss-card:not(.time-boss-layout) #battleStatus {
+    display: none;
+  }
 }
 
 .move-pad button:hover,
@@ -1962,6 +2070,7 @@ h1 {
 
 .device-mobile .whack-hole {
   min-height: clamp(92px, 15vw, 138px);
+  touch-action: none;
 }
 
 .device-mobile .time-tower {
@@ -1971,6 +2080,19 @@ h1 {
 
 .low-power-battle .battle-scene {
   background-size: cover;
+}
+
+.device-mobile .battle-scene.time-boss-mode {
+  background-image:
+    linear-gradient(180deg, rgba(8, 17, 43, .04), rgba(9, 21, 35, .2)),
+    url("assets/generated/time-boss-arena.png");
+}
+
+.device-mobile .projectile,
+.device-mobile .whack-fireball,
+.device-mobile .arena-fireworks,
+.device-mobile .time-pulse {
+  display: none;
 }
 
 .low-power-battle .battle-bars {
@@ -2151,6 +2273,94 @@ h1 {
   .answers,
   .fill-row { grid-template-columns: 1fr; }
   .number-pad { grid-template-columns: repeat(3,1fr); }
+}
+
+@media (min-width: 760px) {
+  .device-mobile .world {
+    position: relative;
+    display: block;
+  }
+
+  .device-mobile .map-wrap {
+    order: initial;
+    position: relative;
+  }
+
+  .device-mobile .islands {
+    position: absolute;
+    left: 14px;
+    top: 14px;
+    z-index: 7;
+    width: 72px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .device-mobile .power {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    z-index: 7;
+    width: clamp(190px, 20vw, 230px);
+    max-height: calc(100% - 32px);
+    margin: 0;
+    padding: 10px;
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255, 246, 215, .88), rgba(226, 187, 111, .8));
+    backdrop-filter: blur(2px);
+  }
+
+  .device-mobile .power h2 {
+    margin: 2px 0 8px;
+    font-size: clamp(1.2rem, 2vw, 1.55rem);
+  }
+
+  .device-mobile .power label {
+    margin: 7px 0 4px;
+    font-size: .82rem;
+  }
+
+  .device-mobile .ability-grid {
+    gap: 6px;
+    margin: 8px 0;
+  }
+
+  .device-mobile .ability-grid div {
+    min-height: 58px;
+    padding: 8px 6px;
+  }
+
+  .device-mobile .ability-grid b {
+    font-size: 1.35rem;
+  }
+
+  .device-mobile .inventory-panel {
+    min-height: 72px;
+    padding: 8px;
+  }
+
+  .device-mobile .inventory-icons {
+    gap: 6px;
+  }
+
+  .device-mobile .inventory-icons img {
+    width: 42px;
+    height: 42px;
+  }
+
+  .device-mobile #bossButton {
+    min-height: 54px;
+    margin: 8px 0 0;
+    font-size: .95rem;
+  }
+
+  .device-mobile .map-art {
+    height: calc(100dvh - 118px);
+    min-height: 560px;
+  }
 }
 
 </style>
@@ -6567,12 +6777,12 @@ const BATTLE_CONFIG = {
     restartAnimations: true
   },
   mobile: {
-    frameInterval: 1000 / 30,
-    maxProjectiles: 6,
-    uiInterval: 140,
-    playerSpeed: 1.7,
-    duelBossShotInterval: 1250,
-    timeBossShotBase: 1650,
+    frameInterval: 250,
+    maxProjectiles: 0,
+    uiInterval: 220,
+    playerSpeed: 3.2,
+    duelBossShotInterval: 2600,
+    timeBossShotBase: 3000,
     timeBossShotJitter: 900,
     restartAnimations: false
   }
@@ -6663,6 +6873,7 @@ const nextQuestion = document.querySelector("#nextQuestion");
 const closeQuestion = document.querySelector("#closeQuestion");
 
 const bossModal = document.querySelector("#bossModal");
+const bossCard = document.querySelector(".boss-card");
 const bossTitle = document.querySelector("#bossTitle");
 const bossName = document.querySelector("#bossName");
 const battleArena = document.querySelector("#battleArena");
@@ -7812,7 +8023,7 @@ function formatPrompt(prompt) {
     .replace(/(想想看，)/g, "\n$1")
     .replace(/；/g, "；\n")
     .replace(/。(?=\S)/g, "。\n")
-    .replace(/\)(?=\S)/g, ")\n")
+    .replace(/\)(?=\d+(?:\.\d+)?[×÷+\-])/g, ")\n")
     .replace(/([？?。])(?=\S)/g, "$1\n")
     .replace(/([，,])(?=\S)/g, "$1\n");
 }
@@ -7822,6 +8033,7 @@ function splitJoinedEquations(prompt) {
     .replace(/＝□(?=\d+[×÷+\-])/g, "＝□\n")
     .replace(/＝■(?=\d+[×÷+\-])/g, "＝■\n")
     .replace(/(÷■＝5)(?=5×■)/g, "$1\n")
+    .replace(/([×÷+\-]\(\s*\)＝\d+(?:\.\d+)?)(?=\d+(?:\.\d+)?[×÷+\-])/g, "$1\n")
     .replace(/(＝□)(?=上面)/g, "$1\n");
   const expressionPattern = /(\d+(?:\.\d+)?)([×÷+\-])(\d+(?:\.\d+)?)＝/g;
   let guard = 0;
@@ -8159,6 +8371,7 @@ function beginBossBattle() {
     lastRenderedBossHp: -1,
     lastShot: 0,
     lastBossShot: 0,
+    nextMobileBossAttack: 0,
     lastHit: 0,
     attackPower: ability.attack,
     bossDamage: getBossDamage(),
@@ -8176,8 +8389,11 @@ function beginBossBattle() {
   battleStatus.textContent = "先看完說明，按確認後開始。";
   endBattle.classList.add("hidden");
   battleActions.classList.add("hidden");
+  battleActions.classList.remove("time-actions", "duel-actions", "whack-actions");
   bossModal.classList.remove("hidden");
   clearArenaProjectiles();
+  battleActions.classList.add("duel-actions");
+  bossCard?.classList.add("duel-boss-layout");
   showDuelInstruction(ability.weapon);
   updateBattleBars();
   renderBattlePositions();
@@ -8236,7 +8452,10 @@ function startDuelRound() {
   if (!battle || battle.mode === "whack") return;
   battle.waitingToStart = false;
   battle.lastFrame = performance.now();
+  battle.nextMobileBossAttack = performance.now() + 2600;
   battleArena.querySelector(".battle-instruction")?.remove();
+  battleActions.classList.remove("time-actions", "whack-actions");
+  battleActions.classList.add("duel-actions");
   battleActions.classList.remove("hidden");
   battleStatus.textContent = `開始決鬥！移動閃避攻擊，按「發射」攻擊 Boss。`;
   battle.frameId = requestAnimationFrame(runBattleFrame);
@@ -8277,6 +8496,9 @@ function startWhackBossBattle() {
   battleStatus.textContent = "先看完說明，按確認後開始。";
   endBattle.classList.add("hidden");
   battleActions.classList.add("hidden");
+  battleActions.classList.remove("time-actions", "duel-actions", "whack-actions");
+  bossCard?.classList.remove("time-boss-layout", "duel-boss-layout");
+  bossCard?.classList.add("whack-boss-layout");
   bossModal.classList.remove("hidden");
   setupWhackArena();
   updateBattleBars();
@@ -8305,6 +8527,7 @@ function startTimeBossBattle() {
     acceleratedHours: 0,
     nearestTower: null,
     lastBossShot: 0,
+    nextMobileBossAttack: 0,
     lastHit: 0,
     bossDamage: 1,
     waitingToStart: true,
@@ -8320,6 +8543,10 @@ function startTimeBossBattle() {
   battleStatus.textContent = "先看完說明，按確認後開始。";
   endBattle.classList.add("hidden");
   battleActions.classList.add("hidden");
+  battleActions.classList.remove("duel-actions", "whack-actions");
+  battleActions.classList.add("time-actions");
+  bossCard?.classList.remove("duel-boss-layout", "whack-boss-layout");
+  bossCard?.classList.add("time-boss-layout");
   bossModal.classList.remove("hidden");
   setupTimeBossArena();
   updateBattleBars();
@@ -8341,6 +8568,8 @@ function createTimeTowerState() {
 function setupTimeBossArena() {
   clearArenaProjectiles();
   battleArena.classList.add("time-boss-mode");
+  battleActions.classList.add("time-actions");
+  bossCard?.classList.add("time-boss-layout");
   battleArena.querySelector(".arena-hint").textContent = "靠近發光時鐘塔，按空白鍵或點塔撥快時間。";
   arenaPlayer.querySelector("img").src = "assets/generated/time-hero-walk.png";
 
@@ -8405,7 +8634,10 @@ function startTimeBossRound() {
   battle.waitingToStart = false;
   battle.lastFrame = performance.now();
   battle.lastBossShot = performance.now() + 650;
+  battle.nextMobileBossAttack = performance.now() + 2800;
   battleArena.querySelector(".battle-instruction")?.remove();
+  battleActions.classList.remove("duel-actions", "whack-actions");
+  battleActions.classList.add("time-actions");
   battleActions.classList.remove("hidden");
   battleStatus.textContent = "靠近時鐘塔並撥快時間，累積 24 小時讓 Boss 衰老。";
 }
@@ -8427,11 +8659,24 @@ function runBattleFrame(now) {
     return;
   }
   if (battle.mode === "timeRitual") {
+    if (isMobileBattleMode()) {
+      updateMobileTimeBossBattle(now);
+      updateBattleBars(now);
+      updateTimeRitualUi(now);
+      battle.frameId = requestAnimationFrame(runBattleFrame);
+      return;
+    }
     updateTimeBossBattle(dt, now);
     updateProjectiles(dt);
     renderBattlePositions();
     updateBattleBars(now);
     updateTimeRitualUi(now);
+    battle.frameId = requestAnimationFrame(runBattleFrame);
+    return;
+  }
+  if (isMobileBattleMode()) {
+    updateMobileDuelBattle(now);
+    updateBattleBars(now);
     battle.frameId = requestAnimationFrame(runBattleFrame);
     return;
   }
@@ -8446,6 +8691,8 @@ function runBattleFrame(now) {
 function setupWhackArena() {
   clearArenaProjectiles();
   battleArena.classList.add("whack-mode");
+  battleActions.classList.add("whack-actions");
+  bossCard?.classList.add("whack-boss-layout");
   const hammer = document.createElement("div");
   hammer.className = "whack-cursor";
   hammer.id = "whackCursor";
@@ -8511,6 +8758,25 @@ function startWhackRound() {
   battleStatus.textContent = "移動槌子，看到 Boss 冒出來就點擊揮槌。";
 }
 
+function updateMobileDuelBattle(now) {
+  const battle = state.battle;
+  if (battle.waitingToStart) return;
+  renderBattlePositions();
+  if (now >= (battle.nextMobileBossAttack || 0)) {
+    hurtPlayer(battle.bossDamage);
+    battle.nextMobileBossAttack = now + 2600;
+  }
+}
+
+function updateMobileTimeBossBattle(now) {
+  const battle = state.battle;
+  if (battle.waitingToStart) return;
+  if (now >= (battle.nextMobileBossAttack || 0)) {
+    hurtPlayer(1);
+    battle.nextMobileBossAttack = now + 3000;
+  }
+}
+
 function updateTimeBossBattle(dt, now) {
   const battle = state.battle;
   if (battle.waitingToStart) return;
@@ -8567,7 +8833,17 @@ function accelerateNearestTimeTower() {
   const battle = state.battle;
   if (!battle || battle.mode !== "timeRitual") return;
   updateNearestTimeTower();
-  if (battle.nearestTower === null) {
+  if (isMobileBattleMode() && battle.nearestTower === null) {
+    const now = performance.now();
+    const index = battle.towers.findIndex((tower) => now >= tower.readyAt);
+    if (index >= 0) {
+      accelerateTimeTower(index);
+      return;
+    }
+    battleStatus.textContent = "時鐘塔還在冷卻，等它重新發光再點。";
+    return;
+  }
+  if (!isMobileBattleMode() && battle.nearestTower === null) {
     battleStatus.textContent = "請先靠近發光的時鐘塔，再撥快時間。";
     return;
   }
@@ -8580,7 +8856,7 @@ function accelerateTimeTower(index) {
   const tower = battle.towers[index];
   const now = performance.now();
   const distanceToTower = Math.hypot(tower.x - battle.player.x, tower.y - battle.player.y);
-  if (distanceToTower > 12) {
+  if (!isMobileBattleMode() && distanceToTower > 12) {
     battleStatus.textContent = "離時鐘塔太遠了，靠近一點才能撥動。";
     return;
   }
@@ -8742,6 +9018,8 @@ battleArena.addEventListener("pointermove", updateWhackHammerFromPointer);
 battleArena.addEventListener("pointerdown", (event) => {
   if (!state.battle || state.battle.mode !== "whack") return;
   if (event.target.closest(".whack-instruction")) return;
+  event.preventDefault();
+  event.stopPropagation();
   updateWhackHammerFromPointer(event);
   const hole = event.target.closest(".whack-hole");
   if (hole) whackHole(Number(hole.dataset.hole));
@@ -8785,6 +9063,10 @@ function clearBattleTouchTarget() {
 function throwWhackFireball() {
   const battle = state.battle;
   if (!battle || battle.mode !== "whack" || battle.ended || !battle.bossVisible) return;
+  if (isMobileBattleMode()) {
+    hurtPlayer(battle.bossDamage);
+    return;
+  }
   const active = battleArena.querySelector(".whack-hole.active");
   if (!active) return;
   playSfx("fireball");
@@ -8883,6 +9165,10 @@ function playerShoot() {
   if (now - battle.lastShot < 360) return;
   playSfx("fireball");
   battle.lastShot = now;
+  if (isMobileBattleMode() && battle.mode !== "timeRitual") {
+    hitBoss(battle.attackPower + (state.maxCombo >= 3 ? 1 : 0), 1, -0.25);
+    return;
+  }
   const dx = battle.boss.x - battle.player.x;
   const dy = battle.boss.y - battle.player.y;
   const dist = Math.hypot(dx, dy) || 1;
@@ -8901,6 +9187,10 @@ function playerShoot() {
 
 function shootBossFireball() {
   const battle = state.battle;
+  if (isMobileBattleMode()) {
+    hurtPlayer(battle.bossDamage);
+    return;
+  }
   playSfx("fireball");
   const dx = battle.player.x - battle.boss.x;
   const dy = battle.player.y - battle.boss.y;
@@ -8921,6 +9211,7 @@ function shootBossFireball() {
 function createProjectile(projectileConfig) {
   const battle = state.battle;
   const battleConfig = getBattleConfig();
+  if (!battle || battleConfig.maxProjectiles <= 0) return;
   if (!battle || battle.projectiles.length >= battleConfig.maxProjectiles) {
     const old = battle?.projectiles.shift();
     old?.el.remove();
@@ -9005,6 +9296,8 @@ function positionBattleElement(el, x, y) {
 function clearArenaProjectiles() {
   battleArena.querySelectorAll(".projectile, .whack-grid, .whack-fireball, .whack-cursor, .whack-instruction, .battle-instruction, .time-tower-layer, .time-ritual-meter, .time-pulse, .time-victory").forEach((el) => el.remove());
   battleArena.classList.remove("whack-mode", "whack-damaged", "whack-empty", "time-boss-mode");
+  battleActions.classList.remove("time-actions", "duel-actions", "whack-actions");
+  bossCard?.classList.remove("time-boss-layout", "duel-boss-layout", "whack-boss-layout");
   battleArena.querySelector(".arena-hint").textContent = "移動並發射武器，別讓 Boss 靠近。";
   fireButton.textContent = "發射";
 }
@@ -9211,6 +9504,18 @@ islandButtons.forEach((button) => button.addEventListener("click", () => resetIs
 soundToggle?.addEventListener("click", toggleSound);
 window.addEventListener("pointerdown", unlockMusicPlayback, { once: true });
 window.addEventListener("keydown", unlockMusicPlayback, { once: true });
+window.addEventListener("dblclick", (event) => {
+  if (isMobileBattleMode() && bossModal && !bossModal.classList.contains("hidden")) event.preventDefault();
+}, { passive: false });
+document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+document.addEventListener("gesturechange", (event) => event.preventDefault(), { passive: false });
+let lastTouchEndAt = 0;
+document.addEventListener("touchend", (event) => {
+  if (!isMobileBattleMode() || bossModal.classList.contains("hidden")) return;
+  const now = Date.now();
+  if (now - lastTouchEndAt < 420) event.preventDefault();
+  lastTouchEndAt = now;
+}, { passive: false });
 bossButton.addEventListener("click", () => {
   moveHeroToElement(bossNode);
   window.setTimeout(startBossBattle, 560);
@@ -9262,6 +9567,7 @@ moveButtons.forEach((button) => {
   const dir = button.dataset.move;
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    if (isMobileBattleMode()) nudgeBattlePlayer(dir);
     heldMoves.add(dir);
     button.setPointerCapture?.(event.pointerId);
   });
@@ -9269,6 +9575,18 @@ moveButtons.forEach((button) => {
   button.addEventListener("pointercancel", () => heldMoves.delete(dir));
   button.addEventListener("pointerleave", () => heldMoves.delete(dir));
 });
+
+function nudgeBattlePlayer(dir) {
+  const battle = state.battle;
+  if (!battle || battle.ended || battle.mode === "whack") return;
+  const step = battle.mode === "timeRitual" ? 7 : 9;
+  if (dir === "left") battle.player.x = clamp(battle.player.x - step, 8, 92);
+  if (dir === "right") battle.player.x = clamp(battle.player.x + step, 8, 92);
+  if (dir === "up") battle.player.y = clamp(battle.player.y - step, 16, 88);
+  if (dir === "down") battle.player.y = clamp(battle.player.y + step, 16, 88);
+  battle.touchTarget = null;
+  renderBattlePositions();
+}
 
 flightButtons.forEach((button) => {
   const dir = button.dataset.flightMove;
