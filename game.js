@@ -13,10 +13,10 @@ const BATTLE_CONFIG = {
     restartAnimations: true
   },
   mobile: {
-    frameInterval: 250,
-    maxProjectiles: 0,
+    frameInterval: 90,
+    maxProjectiles: 6,
     uiInterval: 220,
-    playerSpeed: 3.2,
+    playerSpeed: 2.6,
     duelBossShotInterval: 2600,
     timeBossShotBase: 3000,
     timeBossShotJitter: 900,
@@ -2022,20 +2022,26 @@ function startWhackRound() {
 function updateMobileDuelBattle(now) {
   const battle = state.battle;
   if (battle.waitingToStart) return;
+  const dt = Math.min(40, now - battle.lastFrame) / 16.67;
+  updatePlayerMovement(dt);
+  updateBossMovement(dt, now);
+  updateProjectiles(dt);
   renderBattlePositions();
-  if (now >= (battle.nextMobileBossAttack || 0)) {
-    hurtPlayer(battle.bossDamage);
-    battle.nextMobileBossAttack = now + 2600;
-  }
 }
 
 function updateMobileTimeBossBattle(now) {
   const battle = state.battle;
   if (battle.waitingToStart) return;
-  if (now >= (battle.nextMobileBossAttack || 0)) {
-    hurtPlayer(1);
-    battle.nextMobileBossAttack = now + 3000;
+  const dt = Math.min(40, now - battle.lastFrame) / 16.67;
+  updatePlayerMovement(dt);
+  updateTimeBossMovement(dt, now);
+  updateNearestTimeTower(now);
+  if (now - battle.lastBossShot > 3000 + Math.random() * 900) {
+    shootBossFireball();
+    battle.lastBossShot = now;
   }
+  updateProjectiles(dt);
+  renderBattlePositions();
 }
 
 function updateTimeBossBattle(dt, now) {
@@ -2324,10 +2330,6 @@ function clearBattleTouchTarget() {
 function throwWhackFireball() {
   const battle = state.battle;
   if (!battle || battle.mode !== "whack" || battle.ended || !battle.bossVisible) return;
-  if (isMobileBattleMode()) {
-    hurtPlayer(battle.bossDamage);
-    return;
-  }
   const active = battleArena.querySelector(".whack-hole.active");
   if (!active) return;
   playSfx("fireball");
@@ -2426,10 +2428,6 @@ function playerShoot() {
   if (now - battle.lastShot < 360) return;
   playSfx("fireball");
   battle.lastShot = now;
-  if (isMobileBattleMode() && battle.mode !== "timeRitual") {
-    hitBoss(battle.attackPower + (state.maxCombo >= 3 ? 1 : 0), 1, -0.25);
-    return;
-  }
   const dx = battle.boss.x - battle.player.x;
   const dy = battle.boss.y - battle.player.y;
   const dist = Math.hypot(dx, dy) || 1;
@@ -2448,10 +2446,6 @@ function playerShoot() {
 
 function shootBossFireball() {
   const battle = state.battle;
-  if (isMobileBattleMode()) {
-    hurtPlayer(battle.bossDamage);
-    return;
-  }
   playSfx("fireball");
   const dx = battle.player.x - battle.boss.x;
   const dy = battle.player.y - battle.boss.y;
@@ -2766,13 +2760,16 @@ soundToggle?.addEventListener("click", toggleSound);
 window.addEventListener("pointerdown", unlockMusicPlayback, { once: true });
 window.addEventListener("keydown", unlockMusicPlayback, { once: true });
 window.addEventListener("dblclick", (event) => {
-  if (isMobileBattleMode() && bossModal && !bossModal.classList.contains("hidden")) event.preventDefault();
+  if (isMobileBattleMode()) event.preventDefault();
 }, { passive: false });
 document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
 document.addEventListener("gesturechange", (event) => event.preventDefault(), { passive: false });
+document.addEventListener("touchstart", (event) => {
+  if (isMobileBattleMode() && event.touches && event.touches.length > 1) event.preventDefault();
+}, { passive: false });
 let lastTouchEndAt = 0;
 document.addEventListener("touchend", (event) => {
-  if (!isMobileBattleMode() || bossModal.classList.contains("hidden")) return;
+  if (!isMobileBattleMode()) return;
   const now = Date.now();
   if (now - lastTouchEndAt < 420) event.preventDefault();
   lastTouchEndAt = now;
