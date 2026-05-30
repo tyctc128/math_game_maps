@@ -604,7 +604,7 @@ function updateTimeMovement(dt) {
     return;
   }
   const pos = getHeroPercent();
-  const speed = 0.34 * dt;
+  const speed = (isMobileBattleMode() ? 0.18 : 0.34) * dt;
   let dx = 0;
   let dy = 0;
   if (heldTimeMoves.has("left")) dx -= 1;
@@ -1921,7 +1921,7 @@ function runBattleFrame(now) {
   }
   if (battle.mode === "timeRitual") {
     if (isMobileBattleMode()) {
-      updateMobileTimeBossBattle(now);
+      updateMobileTimeBossBattle(now, dt);
       updateBattleBars(now);
       updateTimeRitualUi(now);
       battle.frameId = requestAnimationFrame(runBattleFrame);
@@ -1936,7 +1936,7 @@ function runBattleFrame(now) {
     return;
   }
   if (isMobileBattleMode()) {
-    updateMobileDuelBattle(now);
+    updateMobileDuelBattle(now, dt);
     updateBattleBars(now);
     battle.frameId = requestAnimationFrame(runBattleFrame);
     return;
@@ -2019,20 +2019,18 @@ function startWhackRound() {
   battleStatus.textContent = "移動槌子，看到 Boss 冒出來就點擊揮槌。";
 }
 
-function updateMobileDuelBattle(now) {
+function updateMobileDuelBattle(now, dt) {
   const battle = state.battle;
   if (battle.waitingToStart) return;
-  const dt = Math.min(40, now - battle.lastFrame) / 16.67;
   updatePlayerMovement(dt);
   updateBossMovement(dt, now);
   updateProjectiles(dt);
   renderBattlePositions();
 }
 
-function updateMobileTimeBossBattle(now) {
+function updateMobileTimeBossBattle(now, dt) {
   const battle = state.battle;
   if (battle.waitingToStart) return;
-  const dt = Math.min(40, now - battle.lastFrame) / 16.67;
   updatePlayerMovement(dt);
   updateTimeBossMovement(dt, now);
   updateNearestTimeTower(now);
@@ -2343,7 +2341,7 @@ function throwWhackFireball() {
   window.setTimeout(() => {
     fireball.remove();
     if (!battle.ended) hurtPlayer(battle.bossDamage);
-  }, 520);
+  }, isMobileBattleMode() ? 820 : 520);
 }
 
 function updatePlayerMovement(dt) {
