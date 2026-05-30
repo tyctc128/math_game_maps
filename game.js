@@ -1,6 +1,6 @@
 const QUESTIONS_PER_ISLAND = 8;
 const DEVICE_PROFILE = detectDeviceProfile();
-let deviceMode = getStoredDeviceMode() || DEVICE_PROFILE.defaultMode;
+let deviceMode = getInitialDeviceMode();
 const BATTLE_CONFIG = {
   desktop: {
     frameInterval: 0,
@@ -174,6 +174,12 @@ function getBattleConfig() {
   return BATTLE_CONFIG[deviceMode] || BATTLE_CONFIG.desktop;
 }
 
+function getInitialDeviceMode() {
+  const stored = getStoredDeviceMode();
+  if (DEVICE_PROFILE.defaultMode === "desktop") return "desktop";
+  return stored || DEVICE_PROFILE.defaultMode;
+}
+
 function getStoredDeviceMode() {
   try {
     return localStorage.getItem("mathAdventureDeviceMode");
@@ -202,6 +208,7 @@ function applyDeviceMode() {
   const current = document.querySelector("#deviceModeToggle");
   if (current) current.replaceWith(toggle);
   else document.querySelector(".hud")?.append(toggle);
+  updateMapControlVisibility();
 }
 
 function createDeviceModeToggle() {
@@ -291,6 +298,19 @@ function closeTransientModals() {
   endBattle.classList.add("hidden");
   rewardCard.classList.add("hidden");
   nextQuestion.classList.add("hidden");
+  updateMapControlVisibility();
+}
+
+function shouldShowMapControls() {
+  const modalOpen = !questionModal.classList.contains("hidden") || !bossModal.classList.contains("hidden") || !clearModal.classList.contains("hidden");
+  if (!isMobileBattleMode() || modalOpen) return false;
+  if (state.flight?.active && !state.flight.paused) return true;
+  if (state.time?.active && !state.time.paused) return true;
+  return false;
+}
+
+function updateMapControlVisibility() {
+  flightControls?.classList.toggle("hidden", !shouldShowMapControls());
 }
 
 function getBossImage(theme) {
@@ -477,7 +497,6 @@ function startFlightMode() {
   if (state.island !== "decimal") return;
   stopFlightMode();
   mapArt.classList.add("flight-mode");
-  flightControls?.classList.remove("hidden");
   eventNodes.forEach((node) => {
     node.disabled = true;
     node.setAttribute("aria-disabled", "true");
@@ -492,6 +511,7 @@ function startFlightMode() {
   };
   moveHeroPercent(18, 50);
   missionLog.textContent = `小數湖飛行中：碰題目答題，答對 ${getChallengeTarget()} 題後挑戰 Boss。`;
+  updateMapControlVisibility();
   state.flight.frameId = requestAnimationFrame(runFlightFrame);
 }
 
@@ -500,8 +520,8 @@ function stopFlightMode() {
   clearFlightObjects();
   state.flight = null;
   heldFlightMoves.clear();
-  flightControls?.classList.add("hidden");
   mapArt.classList.remove("flight-mode", "flight-paused");
+  updateMapControlVisibility();
 }
 
 function startTimeMode() {
@@ -510,7 +530,6 @@ function startTimeMode() {
   configureTimeNodes();
   loadTimeWalkMask();
   mapArt.classList.add("time-mode");
-  flightControls?.classList.remove("hidden");
   heroImage.src = "assets/generated/time-hero-walk.png";
   state.time = {
     active: true,
@@ -521,6 +540,7 @@ function startTimeMode() {
   };
   moveHeroPercent(18, 80);
   missionLog.textContent = `時間庭院探索中：靠近寶箱答題，答對 ${getChallengeTarget()} 題後挑戰 Boss。`;
+  updateMapControlVisibility();
   state.time.frameId = requestAnimationFrame(runTimeFrame);
 }
 
@@ -529,12 +549,13 @@ function stopTimeMode() {
   state.time = null;
   heldTimeMoves.clear();
   mapArt.classList.remove("time-mode");
-  flightControls?.classList.add("hidden");
+  updateMapControlVisibility();
 }
 
 function pauseTimeMode() {
   if (!state.time) return;
   state.time.paused = true;
+  updateMapControlVisibility();
 }
 
 function resumeTimeMode() {
@@ -542,6 +563,7 @@ function resumeTimeMode() {
   state.time.paused = false;
   state.time.opening = false;
   state.time.lastFrame = performance.now();
+  updateMapControlVisibility();
 }
 
 function configureTimeNodes() {
@@ -723,6 +745,7 @@ function pauseFlightMode() {
   if (!state.flight) return;
   state.flight.paused = true;
   mapArt.classList.add("flight-paused");
+  updateMapControlVisibility();
 }
 
 function resumeFlightMode() {
@@ -730,6 +753,7 @@ function resumeFlightMode() {
   state.flight.paused = false;
   mapArt.classList.remove("flight-paused");
   state.flight.lastFrame = performance.now();
+  updateMapControlVisibility();
 }
 
 function runFlightFrame(now) {
@@ -1239,6 +1263,7 @@ function openQuestion(eventName) {
   nextQuestion.classList.add("hidden");
   renderAnswerControls(question, answerArea, numberPad, handleExploreAnswer);
   questionModal.classList.remove("hidden");
+  updateMapControlVisibility();
 }
 
 function markCurrentNodeVisited() {
@@ -2760,20 +2785,24 @@ nextQuestion.addEventListener("click", () => {
   questionModal.classList.add("hidden");
   resumeFlightMode();
   resumeTimeMode();
+  updateMapControlVisibility();
 });
 closeQuestion.addEventListener("click", () => {
   questionModal.classList.add("hidden");
   resumeFlightMode();
   resumeTimeMode();
+  updateMapControlVisibility();
 });
 endBattle.addEventListener("click", () => {
   stopBattleLoop();
   bossModal.classList.add("hidden");
+  updateMapControlVisibility();
 });
 
 clearNext.addEventListener("click", () => {
   const next = state.pendingNextIsland;
   clearModal.classList.add("hidden");
+  updateMapControlVisibility();
   state.pendingNextIsland = null;
   if (next) {
     resetIsland(next);
