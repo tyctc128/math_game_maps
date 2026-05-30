@@ -9049,21 +9049,38 @@ function drawCanvasHammer(ctx, x, y, age) {
 
 function renderMobileCanvasTowers(ctx, w, h, battle) {
   updateMobileCanvasNearestTower();
+  const towerImage = getCanvasImage("assets/generated/clock-tower-mobile.png");
+  const towerSize = Math.max(62, Math.min(98, w * 0.092));
   battle.towers.forEach((tower, index) => {
     const x = pctX(tower.x, w);
     const y = pctY(tower.y, h);
     const cooling = performance.now() < tower.readyAt;
+    const active = battle.nearestTower === index && !cooling;
     ctx.save();
-    ctx.globalAlpha = cooling ? .45 : 1;
-    ctx.fillStyle = battle.nearestTower === index && !cooling ? "#ffe071" : "#caa45d";
-    ctx.fillRect(x - 20, y - 36, 40, 58);
-    ctx.beginPath();
-    ctx.arc(x, y - 18, 20, 0, Math.PI * 2);
-    ctx.fillStyle = cooling ? "#777" : "#fff3b0";
-    ctx.fill();
-    ctx.strokeStyle = "#6c4729";
-    ctx.lineWidth = 4;
-    ctx.stroke();
+    if (active) {
+      const pulse = 0.75 + Math.sin(performance.now() / 120) * 0.15;
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = "rgba(88, 220, 255, .34)";
+      ctx.beginPath();
+      ctx.ellipse(x, y - towerSize * 0.12, towerSize * 0.42, towerSize * 0.56, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (towerImage.complete && towerImage.naturalWidth) {
+      ctx.globalAlpha = cooling ? .42 : 1;
+      ctx.drawImage(towerImage, x - towerSize / 2, y - towerSize * 0.9, towerSize, towerSize);
+      if (cooling) {
+        ctx.globalAlpha = .32;
+        ctx.fillStyle = "#5f6470";
+        ctx.fillRect(x - towerSize / 2, y - towerSize * 0.9, towerSize, towerSize);
+      }
+    } else {
+      ctx.globalAlpha = cooling ? .45 : 1;
+      ctx.fillStyle = active ? "#8de7ff" : "#b99a66";
+      ctx.fillRect(x - 18, y - 42, 36, 64);
+      ctx.fillStyle = cooling ? "#777" : "#d9bf82";
+      ctx.fillRect(x - 12, y - 62, 24, 22);
+    }
     ctx.restore();
   });
 }
