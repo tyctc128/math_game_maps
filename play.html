@@ -2290,6 +2290,57 @@ h1 {
 }
 
 @media (min-width: 760px) {
+  .device-mobile .game {
+    width: 100%;
+    padding: 8px 10px 10px;
+  }
+
+  .device-mobile .hud {
+    display: grid;
+    grid-template-columns: max-content 44px minmax(0, 1fr) minmax(112px, 150px);
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+
+  .device-mobile .brand h1 {
+    font-size: 1.22rem;
+    white-space: nowrap;
+  }
+
+  .device-mobile .sound-toggle {
+    width: 44px;
+    height: 44px;
+    font-size: 1.12rem;
+  }
+
+  .device-mobile .status-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .device-mobile .status-strip div {
+    min-height: 48px;
+    padding: 6px 9px;
+  }
+
+  .device-mobile .status-strip b {
+    font-size: 1rem;
+    line-height: 1.05;
+  }
+
+  .device-mobile .status-strip span {
+    font-size: .72rem;
+  }
+
+  .device-mobile .device-mode-toggle {
+    min-height: 46px;
+    width: 100%;
+    padding: 0 10px;
+    font-size: .95rem;
+  }
+
   .device-mobile .world {
     position: relative;
     display: block;
@@ -2372,8 +2423,8 @@ h1 {
   }
 
   .device-mobile .map-art {
-    height: calc(100dvh - 118px);
-    min-height: 560px;
+    height: calc(100dvh - 74px);
+    min-height: 0;
   }
 }
 
