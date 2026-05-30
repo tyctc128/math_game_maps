@@ -1151,6 +1151,29 @@ h1 {
   -webkit-tap-highlight-color: transparent;
 }
 
+.battle-scene.mobile-canvas-mode {
+  background: #132b3a;
+}
+
+.battle-scene.mobile-canvas-mode .arena-entity,
+.battle-scene.mobile-canvas-mode .arena-hint,
+.battle-scene.mobile-canvas-mode .time-tower-layer,
+.battle-scene.mobile-canvas-mode .whack-grid,
+.battle-scene.mobile-canvas-mode .whack-cursor {
+  display: none !important;
+}
+
+.mobile-boss-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .device-mobile .modal {
   padding: 6px;
 }

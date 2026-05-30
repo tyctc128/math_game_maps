@@ -1158,6 +1158,29 @@ h1 {
   -webkit-tap-highlight-color: transparent;
 }
 
+.battle-scene.mobile-canvas-mode {
+  background: #132b3a;
+}
+
+.battle-scene.mobile-canvas-mode .arena-entity,
+.battle-scene.mobile-canvas-mode .arena-hint,
+.battle-scene.mobile-canvas-mode .time-tower-layer,
+.battle-scene.mobile-canvas-mode .whack-grid,
+.battle-scene.mobile-canvas-mode .whack-cursor {
+  display: none !important;
+}
+
+.mobile-boss-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .device-mobile .modal {
   padding: 6px;
 }
@@ -6953,6 +6976,7 @@ const fireButton = document.querySelector("#fireButton");
 const moveButtons = [...document.querySelectorAll("[data-move]")];
 const endBattle = document.querySelector("#endBattle");
 const heldMoves = new Set();
+const mobileCanvasImages = new Map();
 const clearModal = document.querySelector("#clearModal");
 const clearText = document.querySelector("#clearText");
 const clearNext = document.querySelector("#clearNext");
@@ -6980,7 +7004,8 @@ const audio = {
   currentSrc: "",
   volume: 0.18,
   unlocked: false,
-  sfxVolume: 0.48
+  sfxVolume: 0.48,
+  sfxPools: {}
 };
 
 function detectDeviceProfile() {
@@ -7311,8 +7336,18 @@ function playSfx(name) {
     open: "sounds/openbox.mp3"
   }[name];
   if (!src) return;
-  const effect = new Audio(src);
+  if (!audio.sfxPools[src]) {
+    audio.sfxPools[src] = Array.from({ length: 3 }, () => {
+      const item = new Audio(src);
+      item.preload = "auto";
+      item.volume = audio.sfxVolume;
+      return item;
+    });
+  }
+  const pool = audio.sfxPools[src];
+  const effect = pool.find((item) => item.paused || item.ended) || pool[0];
   effect.volume = audio.sfxVolume;
+  try { effect.currentTime = 0; } catch {}
   effect.play().catch(() => {});
 }
 
@@ -8436,6 +8471,10 @@ function startBossBattle() {
 
 function beginBossBattle() {
   stopFlightMode();
+  if (isMobileBattleMode()) {
+    startMobileCanvasBossBattle(state.island);
+    return;
+  }
   if (state.island === "decimal") {
     startWhackBossBattle();
     return;
@@ -8552,6 +8591,10 @@ function startDuelRound() {
 }
 
 function startWhackBossBattle() {
+  if (isMobileBattleMode()) {
+    startMobileCanvasBossBattle("decimal");
+    return;
+  }
   const ability = getAbility();
   const bossMaxHp = 54;
   state.battle = {
@@ -8596,6 +8639,10 @@ function startWhackBossBattle() {
 }
 
 function startTimeBossBattle() {
+  if (isMobileBattleMode()) {
+    startMobileCanvasBossBattle("time");
+    return;
+  }
   stopTimeMode();
   const ability = getAbility();
   state.battle = {
@@ -8642,6 +8689,492 @@ function startTimeBossBattle() {
   updateBattleBars();
   renderBattlePositions();
   state.battle.frameId = requestAnimationFrame(runBattleFrame);
+}
+
+function startMobileCanvasBossBattle(kind) {
+  stopFlightMode();
+  stopTimeMode();
+  const ability = getAbility();
+  const isWhack = kind === "decimal";
+  const isTime = kind === "time";
+  const bossMaxHp = isTime ? 24 : isWhack ? 42 : 34;
+  state.battle = {
+    mode: "mobileCanvas",
+    canvasKind: kind,
+    playerHp: ability.hp + (isTime ? 3 : isWhack ? 2 : 0),
+    playerMaxHp: ability.hp + (isTime ? 3 : isWhack ? 2 : 0),
+    bossHp: bossMaxHp,
+    bossMaxHp,
+    ended: false,
+    waitingToStart: true,
+    player: { x: isWhack ? 50 : 18, y: isWhack ? 78 : isTime ? 76 : 72, radius: 5 },
+    boss: { x: isTime ? 50 : 78, y: isTime ? 35 : 30, radius: isTime ? 7.2 : 8 },
+    attackPower: ability.attack,
+    bossDamage: isWhack || isTime ? 1 : getBossDamage(),
+    lastFrame: performance.now(),
+    lastUiUpdate: 0,
+    lastRenderedPlayerHp: -1,
+    lastRenderedBossHp: -1,
+    lastShot: 0,
+    lastBossShot: performance.now(),
+    lastHit: 0,
+    projectiles: [],
+    touchTarget: null,
+    frameId: null,
+    canvas: null,
+    ctx: null,
+    effects: [],
+    whack: createMobileWhackState(),
+    towers: createMobileCanvasTowers(),
+    acceleratedHours: 0,
+    nearestTower: null
+  };
+
+  if (bossTitle) bossTitle.textContent = isTime ? `快轉時間 對決 ${islands[kind].boss}` : isWhack ? `槌子決鬥 ${islands[kind].boss}` : `${ability.weapon} 對決 ${islands[kind].boss}`;
+  bossName.textContent = islands[kind].boss;
+  battleStatus.textContent = "先看完說明，按確認後開始。";
+  endBattle.classList.add("hidden");
+  battleActions.classList.add("hidden");
+  battleActions.classList.remove("duel-actions", "whack-actions", "time-actions");
+  if (!isWhack) battleActions.classList.add(isTime ? "time-actions" : "duel-actions");
+  bossCard?.classList.toggle("time-boss-layout", isTime);
+  bossCard?.classList.toggle("whack-boss-layout", isWhack);
+  bossCard?.classList.toggle("duel-boss-layout", !isWhack && !isTime);
+  bossModal.classList.remove("hidden");
+  setupMobileCanvasArena(kind);
+  updateBattleBars();
+  renderMobileCanvasBattle();
+  showMobileCanvasInstruction(kind);
+}
+
+function createMobileWhackState() {
+  return {
+    holes: [
+      { x: 22, y: 36 }, { x: 50, y: 36 }, { x: 78, y: 36 },
+      { x: 22, y: 58 }, { x: 50, y: 58 }, { x: 78, y: 58 },
+      { x: 22, y: 80 }, { x: 50, y: 80 }, { x: 78, y: 80 }
+    ],
+    activeHole: -1,
+    bossVisible: false,
+    nextPopAt: Number.POSITIVE_INFINITY,
+    hideAt: 0,
+    attackAt: Number.POSITIVE_INFINITY,
+    hammer: null
+  };
+}
+
+function createMobileCanvasTowers() {
+  return [
+    { x: 16, y: 39, readyAt: 0 }, { x: 34, y: 27, readyAt: 0 },
+    { x: 66, y: 27, readyAt: 0 }, { x: 84, y: 39, readyAt: 0 },
+    { x: 30, y: 72, readyAt: 0 }, { x: 70, y: 72, readyAt: 0 }
+  ];
+}
+
+function setupMobileCanvasArena(kind) {
+  clearArenaProjectiles();
+  battleArena.classList.add("mobile-canvas-mode");
+  battleArena.classList.toggle("time-boss-mode", kind === "time");
+  battleArena.classList.toggle("whack-mode", kind === "decimal");
+  const canvas = document.createElement("canvas");
+  canvas.className = "mobile-boss-canvas";
+  canvas.setAttribute("aria-label", "平板 Boss 戰場");
+  battleArena.append(canvas);
+  state.battle.canvas = canvas;
+  state.battle.ctx = canvas.getContext("2d", { alpha: false });
+  canvas.addEventListener("pointerdown", handleMobileCanvasPointerDown);
+  canvas.addEventListener("pointermove", handleMobileCanvasPointerMove);
+  canvas.addEventListener("pointerup", () => { if (state.battle) state.battle.touchTarget = null; });
+  canvas.addEventListener("pointercancel", () => { if (state.battle) state.battle.touchTarget = null; });
+  resizeMobileCanvas();
+  fireButton.textContent = kind === "time" ? "撥快時間" : "發射";
+}
+
+function showMobileCanvasInstruction(kind) {
+  const instruction = document.createElement("div");
+  instruction.className = "battle-instruction";
+  const title = kind === "decimal" ? "槌子決鬥" : kind === "time" ? "時間塔決鬥" : "Boss 決鬥";
+  const body = kind === "decimal"
+    ? "點 Boss 冒出的洞口揮槌。Boss 會丟火球，寶物會先抵擋。"
+    : kind === "time"
+      ? "用方向鍵移動，靠近時鐘塔後按「撥快時間」。累積 24 小時讓 Boss 衰老。"
+      : "用方向鍵移動，按「發射」攻擊 Boss，並閃避火球。";
+  instruction.innerHTML = `
+    <section>
+      <h3>${title}</h3>
+      <p>${body}</p>
+      <button type="button" class="primary">確認開始</button>
+    </section>
+  `;
+  instruction.querySelector("button").addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    startMobileCanvasRound();
+  });
+  battleArena.append(instruction);
+}
+
+function startMobileCanvasRound() {
+  const battle = state.battle;
+  if (!battle || battle.mode !== "mobileCanvas") return;
+  battle.waitingToStart = false;
+  battle.lastFrame = performance.now();
+  battle.lastBossShot = performance.now();
+  battleArena.querySelector(".battle-instruction")?.remove();
+  battleActions.classList.toggle("hidden", battle.canvasKind === "decimal");
+  battleStatus.textContent = battle.canvasKind === "decimal"
+    ? "看到 Boss 冒出洞口就點擊。"
+    : battle.canvasKind === "time"
+      ? "靠近時鐘塔並撥快時間，累積 24 小時。"
+      : "移動閃避攻擊，按「發射」攻擊 Boss。";
+  if (battle.canvasKind === "decimal") battle.whack.nextPopAt = performance.now() + 450;
+  battle.frameId = requestAnimationFrame(runMobileCanvasFrame);
+}
+
+function getCanvasImage(src) {
+  if (mobileCanvasImages.has(src)) return mobileCanvasImages.get(src);
+  const img = new Image();
+  img.src = src;
+  mobileCanvasImages.set(src, img);
+  return img;
+}
+
+function getMobileCanvasBackground(kind) {
+  if (kind === "decimal") return "assets/generated/decimal-whack-arena-mobile.jpg";
+  if (kind === "time") return "assets/generated/time-boss-arena-mobile.jpg";
+  return "assets/generated/math-islands-map-mobile.jpg";
+}
+
+function resizeMobileCanvas() {
+  const battle = state.battle;
+  if (!battle?.canvas) return;
+  const rect = battleArena.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  battle.canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+  battle.canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  battle.canvas.style.width = `${rect.width}px`;
+  battle.canvas.style.height = `${rect.height}px`;
+  battle.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  battle.canvasSize = { w: rect.width, h: rect.height };
+}
+
+function runMobileCanvasFrame(now) {
+  const battle = state.battle;
+  if (!battle || battle.mode !== "mobileCanvas" || battle.ended) return;
+  if (!battle.canvasSize) resizeMobileCanvas();
+  const dt = Math.min(50, now - battle.lastFrame) / 16.67;
+  battle.lastFrame = now;
+  if (!battle.waitingToStart) {
+    if (battle.canvasKind === "decimal") updateMobileCanvasWhack(now);
+    else if (battle.canvasKind === "time") updateMobileCanvasTime(dt, now);
+    else updateMobileCanvasDuel(dt, now);
+    updateMobileCanvasProjectiles(dt);
+    updateBattleBars(now);
+  }
+  renderMobileCanvasBattle();
+  battle.frameId = requestAnimationFrame(runMobileCanvasFrame);
+}
+
+function updateMobileCanvasDuel(dt, now) {
+  updatePlayerMovement(dt);
+  updateBossMovement(dt, now);
+}
+
+function updateMobileCanvasTime(dt, now) {
+  updatePlayerMovement(dt);
+  updateTimeBossMovement(dt, now);
+  updateMobileCanvasNearestTower(now);
+  if (now - state.battle.lastBossShot > 2800) {
+    shootBossFireball();
+    state.battle.lastBossShot = now;
+  }
+}
+
+function updateMobileCanvasWhack(now) {
+  const battle = state.battle;
+  const whack = battle.whack;
+  if (!whack.bossVisible && now >= whack.nextPopAt) {
+    whack.activeHole = Math.floor(Math.random() * whack.holes.length);
+    whack.bossVisible = true;
+    whack.hideAt = now + 1050;
+    whack.attackAt = Math.random() < 0.34 ? now + 620 : Number.POSITIVE_INFINITY;
+  }
+  if (whack.bossVisible && now >= whack.attackAt) {
+    playSfx("fireball");
+    battle.effects.push({ type: "whackFire", x: whack.holes[whack.activeHole].x, y: whack.holes[whack.activeHole].y, t: 0, life: 42 });
+    window.setTimeout(() => { if (!battle.ended) hurtPlayer(battle.bossDamage); }, 520);
+    whack.attackAt = Number.POSITIVE_INFINITY;
+  }
+  if (whack.bossVisible && now >= whack.hideAt) {
+    whack.bossVisible = false;
+    whack.activeHole = -1;
+    whack.nextPopAt = now + 420 + Math.random() * 480;
+  }
+  if (whack.hammer && now - whack.hammer.startedAt > 260) whack.hammer = null;
+}
+
+function updateMobileCanvasProjectiles(dt) {
+  const battle = state.battle;
+  if (!battle.projectiles) battle.projectiles = [];
+  battle.projectiles.forEach((shot) => {
+    shot.x += shot.vx * dt;
+    shot.y += shot.vy * dt;
+    shot.life -= dt;
+    if (shot.owner === "player" && distance(shot, battle.boss) < battle.boss.radius + shot.radius) {
+      hitBoss(shot.power, shot.vx, shot.vy);
+      shot.life = 0;
+    }
+    if (shot.owner === "boss" && distance(shot, battle.player) < battle.player.radius + shot.radius) {
+      hurtPlayer(shot.power);
+      shot.life = 0;
+    }
+  });
+  battle.projectiles = battle.projectiles.filter((shot) => shot.life > 0 && shot.x > -8 && shot.x < 108 && shot.y > -8 && shot.y < 108);
+  battle.effects = (battle.effects || []).filter((effect) => {
+    effect.t += 1;
+    return effect.t < effect.life;
+  });
+}
+
+function renderMobileCanvasBattle() {
+  const battle = state.battle;
+  if (!battle?.ctx || !battle.canvasSize) return;
+  const ctx = battle.ctx;
+  const { w, h } = battle.canvasSize;
+  const bg = getCanvasImage(getMobileCanvasBackground(battle.canvasKind));
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#173447";
+  ctx.fillRect(0, 0, w, h);
+  if (bg.complete && bg.naturalWidth) drawCoverImage(ctx, bg, 0, 0, w, h);
+  ctx.fillStyle = "rgba(10,20,30,.12)";
+  ctx.fillRect(0, 0, w, h);
+
+  if (battle.canvasKind === "decimal") renderMobileCanvasWhack(ctx, w, h, battle);
+  else {
+    if (battle.canvasKind === "time") renderMobileCanvasTowers(ctx, w, h, battle);
+    renderMobileCanvasEntity(ctx, getCanvasImage("assets/generated/hero.png"), battle.player.x, battle.player.y, battle.canvasKind === "time" ? 70 : 78, w, h);
+    const bossSrc = battle.canvasKind === "time" ? getTimeBossAgeImage(Math.min(3, Math.floor((battle.acceleratedHours || 0) / 8))) : getBossImage(islands[battle.canvasKind].theme);
+    renderMobileCanvasEntity(ctx, getCanvasImage(bossSrc), battle.boss.x, battle.boss.y, battle.canvasKind === "time" ? 132 : 150, w, h);
+    renderMobileCanvasProjectiles(ctx, w, h, battle);
+  }
+}
+
+function drawCoverImage(ctx, img, x, y, w, h) {
+  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const sw = w / scale;
+  const sh = h / scale;
+  const sx = (img.naturalWidth - sw) / 2;
+  const sy = (img.naturalHeight - sh) / 2;
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+function pctX(x, w) { return (x / 100) * w; }
+function pctY(y, h) { return (y / 100) * h; }
+
+function renderMobileCanvasEntity(ctx, img, x, y, size, w, h) {
+  const px = pctX(x, w);
+  const py = pctY(y, h);
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.28)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 6;
+  if (img.complete && img.naturalWidth) ctx.drawImage(img, px - size / 2, py - size / 2, size, size);
+  else {
+    ctx.fillStyle = "#ffd45a";
+    ctx.beginPath();
+    ctx.arc(px, py, size / 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function renderMobileCanvasProjectiles(ctx, w, h, battle) {
+  (battle.projectiles || []).forEach((shot) => {
+    const x = pctX(shot.x, w);
+    const y = pctY(shot.y, h);
+    const r = shot.owner === "boss" ? 15 : 12;
+    const grad = ctx.createRadialGradient(x, y, 2, x, y, r);
+    grad.addColorStop(0, "#fff6a4");
+    grad.addColorStop(.45, shot.owner === "boss" ? "#ff7b2e" : "#ffd84f");
+    grad.addColorStop(1, shot.owner === "boss" ? "#c72b25" : "#f7a923");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function renderMobileCanvasWhack(ctx, w, h, battle) {
+  const bossImg = getCanvasImage(getBossImage("lake"));
+  const whack = battle.whack;
+  whack.holes.forEach((hole, index) => {
+    const x = pctX(hole.x, w);
+    const y = pctY(hole.y, h);
+    ctx.fillStyle = "rgba(32,18,16,.86)";
+    ctx.beginPath();
+    ctx.ellipse(x, y, 72, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(159,96,58,.7)";
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    if (whack.bossVisible && whack.activeHole === index) renderMobileCanvasEntity(ctx, bossImg, hole.x, hole.y - 8, 112, w, h);
+  });
+  if (whack.hammer) drawCanvasHammer(ctx, pctX(whack.hammer.x, w), pctY(whack.hammer.y, h), performance.now() - whack.hammer.startedAt);
+  (battle.effects || []).forEach((effect) => {
+    if (effect.type !== "whackFire") return;
+    const t = effect.t / effect.life;
+    const x = pctX(effect.x + (50 - effect.x) * t, w);
+    const y = pctY(effect.y + (92 - effect.y) * t, h);
+    ctx.fillStyle = `rgba(255, ${Math.floor(180 - 80 * t)}, 42, ${1 - t * .35})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 18 + 10 * t, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawCanvasHammer(ctx, x, y, age) {
+  const swing = Math.min(1, age / 240);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(-0.8 + swing * 1.4);
+  ctx.fillStyle = "#7a4528";
+  ctx.fillRect(-8, -10, 16, 76);
+  ctx.fillStyle = "#d69045";
+  ctx.fillRect(-44, -34, 88, 32);
+  ctx.strokeStyle = "rgba(80,45,24,.55)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(-44, -34, 88, 32);
+  ctx.restore();
+}
+
+function renderMobileCanvasTowers(ctx, w, h, battle) {
+  updateMobileCanvasNearestTower();
+  battle.towers.forEach((tower, index) => {
+    const x = pctX(tower.x, w);
+    const y = pctY(tower.y, h);
+    const cooling = performance.now() < tower.readyAt;
+    ctx.save();
+    ctx.globalAlpha = cooling ? .45 : 1;
+    ctx.fillStyle = battle.nearestTower === index && !cooling ? "#ffe071" : "#caa45d";
+    ctx.fillRect(x - 20, y - 36, 40, 58);
+    ctx.beginPath();
+    ctx.arc(x, y - 18, 20, 0, Math.PI * 2);
+    ctx.fillStyle = cooling ? "#777" : "#fff3b0";
+    ctx.fill();
+    ctx.strokeStyle = "#6c4729";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function updateMobileCanvasNearestTower(now = performance.now()) {
+  const battle = state.battle;
+  if (!battle || battle.mode !== "mobileCanvas" || battle.canvasKind !== "time") return;
+  let nearest = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  battle.towers.forEach((tower, index) => {
+    const d = Math.hypot(tower.x - battle.player.x, tower.y - battle.player.y);
+    if (d < nearestDistance) {
+      nearestDistance = d;
+      nearest = index;
+    }
+  });
+  battle.nearestTower = nearestDistance <= 12 ? nearest : null;
+}
+
+function handleMobileCanvasPointerDown(event) {
+  const battle = state.battle;
+  if (!battle || battle.mode !== "mobileCanvas" || battle.waitingToStart || battle.ended) return;
+  event.preventDefault();
+  if (battle.canvasKind === "decimal") {
+    const point = getMobileCanvasPoint(event);
+    mobileCanvasWhackAt(point.x, point.y);
+    return;
+  }
+  setMobileCanvasTouchTarget(event);
+}
+
+function handleMobileCanvasPointerMove(event) {
+  const battle = state.battle;
+  if (!battle || battle.mode !== "mobileCanvas" || battle.waitingToStart || battle.ended || battle.canvasKind === "decimal") return;
+  event.preventDefault();
+  setMobileCanvasTouchTarget(event);
+}
+
+function getMobileCanvasPoint(event) {
+  const rect = state.battle.canvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * 100,
+    y: ((event.clientY - rect.top) / rect.height) * 100
+  };
+}
+
+function setMobileCanvasTouchTarget(event) {
+  const point = getMobileCanvasPoint(event);
+  state.battle.touchTarget = { x: clamp(point.x, 8, 92), y: clamp(point.y, 16, 88) };
+}
+
+function mobileCanvasWhackAt(x, y) {
+  const battle = state.battle;
+  const whack = battle.whack;
+  playSfx("hammer");
+  whack.hammer = { x, y, startedAt: performance.now() };
+  if (!whack.bossVisible || whack.activeHole < 0) {
+    battleStatus.textContent = "敲空了，等 Boss 冒出來再打。";
+    return;
+  }
+  const hole = whack.holes[whack.activeHole];
+  if (Math.hypot(hole.x - x, hole.y - y) > 13) {
+    battleStatus.textContent = "差一點，點 Boss 冒出的洞口。";
+    return;
+  }
+  whack.bossVisible = false;
+  whack.activeHole = -1;
+  battle.bossHp = Math.max(0, battle.bossHp - battle.attackPower);
+  battleStatus.textContent = `敲中 Boss！造成 ${battle.attackPower} 點傷害。`;
+  playSfx("bossHit");
+  battle.effects.push({ type: "hit", x: hole.x, y: hole.y, t: 0, life: 16 });
+  if (battle.bossHp <= 0) finishBattle(true);
+  else whack.nextPopAt = performance.now() + 360 + Math.random() * 420;
+}
+
+function mobileCanvasAction() {
+  const battle = state.battle;
+  if (!battle || battle.mode !== "mobileCanvas" || battle.waitingToStart || battle.ended) return;
+  if (battle.canvasKind === "time") {
+    updateMobileCanvasNearestTower();
+    if (battle.nearestTower === null) {
+      battleStatus.textContent = "靠近時鐘塔後再撥快時間。";
+      return;
+    }
+    const tower = battle.towers[battle.nearestTower];
+    const now = performance.now();
+    if (now < tower.readyAt) {
+      battleStatus.textContent = "這座時鐘塔還在冷卻。";
+      return;
+    }
+    tower.readyAt = now + 5000;
+    battle.acceleratedHours = Math.min(24, battle.acceleratedHours + 2);
+    battle.bossHp = Math.max(0, 24 - battle.acceleratedHours);
+    playSfx("time");
+    battleStatus.textContent = `快轉 2 小時，已累積 ${battle.acceleratedHours} / 24 小時。`;
+    if (battle.acceleratedHours >= 24) finishBattle(true);
+    return;
+  }
+  playerShoot();
+}
+
+function mobileCanvasMove(dir) {
+  const battle = state.battle;
+  if (!battle || battle.mode !== "mobileCanvas" || battle.canvasKind === "decimal") return false;
+  const step = battle.canvasKind === "time" ? 7 : 9;
+  if (dir === "left") battle.player.x = clamp(battle.player.x - step, 8, 92);
+  if (dir === "right") battle.player.x = clamp(battle.player.x + step, 8, 92);
+  if (dir === "up") battle.player.y = clamp(battle.player.y - step, 16, 88);
+  if (dir === "down") battle.player.y = clamp(battle.player.y + step, 16, 88);
+  battle.touchTarget = null;
+  return true;
 }
 
 function createTimeTowerState() {
@@ -8890,7 +9423,7 @@ function updateTimeBossMovement(dt, now) {
   const dx = battle.player.x - battle.boss.x;
   const dy = battle.player.y - battle.boss.y;
   const dist = Math.hypot(dx, dy) || 1;
-  const speed = 0.34 * dt;
+  const speed = (isMobileBattleMode() ? 0.18 : 0.34) * dt;
   battle.boss.x = clamp(battle.boss.x + (dx / dist) * speed, 10, 90);
   battle.boss.y = clamp(battle.boss.y + (dy / dist) * speed, 16, 86);
 
@@ -9243,7 +9776,7 @@ function updateProjectiles(dt) {
 
   battle.projectiles = battle.projectiles.filter((shot) => {
     const alive = shot.life > 0 && shot.x > -8 && shot.x < 108 && shot.y > -8 && shot.y < 108;
-    if (!alive) shot.el.remove();
+    if (!alive) shot.el?.remove();
     return alive;
   });
 }
@@ -9298,6 +9831,10 @@ function createProjectile(projectileConfig) {
     const old = battle?.projectiles.shift();
     old?.el.remove();
   }
+  if (battle.mode === "mobileCanvas") {
+    state.battle.projectiles.push({ ...projectileConfig, el: null });
+    return;
+  }
   const el = document.createElement("div");
   el.className = `projectile ${projectileConfig.className}`;
   positionBattleElement(el, projectileConfig.x, projectileConfig.y);
@@ -9315,7 +9852,7 @@ function hitBoss(power, vx, vy) {
   battle.boss.y = clamp(battle.boss.y + (vy / mag) * push, 16, 88);
   battleStatus.textContent = `命中 Boss，造成 ${power} 點傷害並擊退。`;
   playSfx("bossHit");
-  flashEntity(arenaBoss);
+  if (battle.mode !== "mobileCanvas") flashEntity(arenaBoss);
   if (battle.bossHp <= 0) finishBattle(true);
 }
 
@@ -9330,7 +9867,7 @@ function hurtPlayer(power) {
       battleArena.classList.remove("whack-damaged");
       if (getBattleConfig().restartAnimations) void battleArena.offsetWidth;
       battleArena.classList.add("whack-damaged");
-    } else {
+    } else if (battle.mode !== "mobileCanvas") {
       flashEntity(arenaPlayer);
     }
     return;
@@ -9342,7 +9879,7 @@ function hurtPlayer(power) {
     battleArena.classList.remove("whack-damaged");
     if (getBattleConfig().restartAnimations) void battleArena.offsetWidth;
     battleArena.classList.add("whack-damaged");
-  } else {
+  } else if (battle.mode !== "mobileCanvas") {
     flashEntity(arenaPlayer);
   }
   if (battle.playerHp <= 0) finishBattle(false);
@@ -9376,8 +9913,8 @@ function positionBattleElement(el, x, y) {
 }
 
 function clearArenaProjectiles() {
-  battleArena.querySelectorAll(".projectile, .whack-grid, .whack-fireball, .whack-cursor, .whack-instruction, .battle-instruction, .time-tower-layer, .time-ritual-meter, .time-pulse, .time-victory").forEach((el) => el.remove());
-  battleArena.classList.remove("whack-mode", "whack-damaged", "whack-empty", "time-boss-mode");
+  battleArena.querySelectorAll(".projectile, .whack-grid, .whack-fireball, .whack-cursor, .whack-instruction, .battle-instruction, .time-tower-layer, .time-ritual-meter, .time-pulse, .time-victory, .mobile-boss-canvas").forEach((el) => el.remove());
+  battleArena.classList.remove("whack-mode", "whack-damaged", "whack-empty", "time-boss-mode", "mobile-canvas-mode");
   battleActions.classList.remove("time-actions", "duel-actions", "whack-actions");
   bossCard?.classList.remove("time-boss-layout", "duel-boss-layout", "whack-boss-layout");
   battleArena.querySelector(".arena-hint").textContent = "移動並發射武器，別讓 Boss 靠近。";
@@ -9430,6 +9967,8 @@ function finishBattle(win) {
   const battleMode = battle.mode || "duel";
   if (battle.mode === "whack") {
     battleArena.querySelectorAll(".whack-fireball").forEach((el) => el.remove());
+  } else if (battle.mode === "mobileCanvas") {
+    battle.projectiles = [];
   } else if (battle.mode !== "timeRitual") {
     clearArenaProjectiles();
   } else {
@@ -9444,7 +9983,10 @@ function finishBattle(win) {
     playSfx("win");
     const next = getNextIsland();
     state.pendingNextIsland = next;
-    if (battleMode === "whack") {
+    if (battleMode === "mobileCanvas") {
+      battle.effects = [{ type: "win", x: 50, y: 45, t: 0, life: 60 }];
+      renderMobileCanvasBattle();
+    } else if (battleMode === "whack") {
       const active = battleArena.querySelector(".whack-hole.active") || battleArena.querySelector(".whack-hole");
       active?.classList.add("defeated");
     } else if (battleMode === "timeRitual") {
@@ -9639,6 +10181,10 @@ clearNext.addEventListener("click", () => {
 let lastBattleActionPointerAt = 0;
 
 function useBattleActionButton() {
+  if (state.battle?.mode === "mobileCanvas") {
+    mobileCanvasAction();
+    return;
+  }
   if (state.battle?.mode === "timeRitual") accelerateNearestTimeTower();
   else playerShoot();
 }
@@ -9667,6 +10213,7 @@ moveButtons.forEach((button) => {
 
 function nudgeBattlePlayer(dir) {
   const battle = state.battle;
+  if (battle?.mode === "mobileCanvas" && mobileCanvasMove(dir)) return;
   if (!battle || battle.ended || battle.mode === "whack") return;
   const step = battle.mode === "timeRitual" ? 7 : 9;
   if (dir === "left") battle.player.x = clamp(battle.player.x - step, 8, 92);
@@ -9708,9 +10255,14 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
   }
   if (event.key === " " && state.battle && !state.battle.ended) {
-    if (state.battle.mode === "whack") whackActiveHole();
+    if (state.battle.mode === "mobileCanvas") mobileCanvasAction();
+    else if (state.battle.mode === "whack") whackActiveHole();
     else if (state.battle.mode === "timeRitual") accelerateNearestTimeTower();
     else playerShoot();
+    event.preventDefault();
+  }
+  if (event.key === "Enter" && state.battle?.mode === "mobileCanvas" && !state.battle.ended) {
+    mobileCanvasAction();
     event.preventDefault();
   }
   if (event.key === "Enter" && state.battle?.mode === "timeRitual" && !state.battle.ended) {
