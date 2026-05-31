@@ -616,7 +616,7 @@ function updateTimeMovement(dt) {
     return;
   }
   const pos = getHeroPercent();
-  const speed = (isMobileBattleMode() ? 0.18 : 0.34) * dt;
+  const speed = (isMobileBattleMode() ? 0.33 : 0.34) * dt;
   let dx = 0;
   let dy = 0;
   if (heldTimeMoves.has("left")) dx -= 1;
@@ -3058,10 +3058,8 @@ function hurtPlayer(power) {
   if (blockedByItem) {
     battleStatus.textContent = `${blockedByItem.name} 擋住了 Boss 攻擊，背包少 1 個寶物。`;
     playSfx("shield");
-    if (battle.mode === "whack") {
-      battleArena.classList.remove("whack-damaged");
-      if (getBattleConfig().restartAnimations) void battleArena.offsetWidth;
-      battleArena.classList.add("whack-damaged");
+    if (battle.mode === "whack" || (battle.mode === "mobileCanvas" && battle.canvasKind === "decimal")) {
+      triggerWhackDamageShake();
     } else if (battle.mode !== "mobileCanvas") {
       flashEntity(arenaPlayer);
     }
@@ -3070,14 +3068,19 @@ function hurtPlayer(power) {
   battle.playerHp = Math.max(0, battle.playerHp - power);
   playSfx("hit");
   battleStatus.textContent = `被火球打中了，失去 ${power} 點血量。`;
-  if (battle.mode === "whack") {
-    battleArena.classList.remove("whack-damaged");
-    if (getBattleConfig().restartAnimations) void battleArena.offsetWidth;
-    battleArena.classList.add("whack-damaged");
+  if (battle.mode === "whack" || (battle.mode === "mobileCanvas" && battle.canvasKind === "decimal")) {
+    triggerWhackDamageShake();
   } else if (battle.mode !== "mobileCanvas") {
     flashEntity(arenaPlayer);
   }
   if (battle.playerHp <= 0) finishBattle(false);
+}
+
+function triggerWhackDamageShake() {
+  battleArena.classList.remove("whack-damaged");
+  void battleArena.offsetWidth;
+  battleArena.classList.add("whack-damaged");
+  window.setTimeout(() => battleArena.classList.remove("whack-damaged"), 720);
 }
 
 function consumeBattleTreasure() {
