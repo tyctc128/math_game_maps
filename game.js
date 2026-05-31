@@ -2140,16 +2140,47 @@ function renderMobileCanvasProjectiles(ctx, w, h, battle) {
   (battle.projectiles || []).forEach((shot) => {
     const x = pctX(shot.x, w);
     const y = pctY(shot.y, h);
-    const r = shot.owner === "boss" ? 15 : 12;
-    const grad = ctx.createRadialGradient(x, y, 2, x, y, r);
-    grad.addColorStop(0, "#fff6a4");
-    grad.addColorStop(.45, shot.owner === "boss" ? "#ff7b2e" : "#ffd84f");
-    grad.addColorStop(1, shot.owner === "boss" ? "#c72b25" : "#f7a923");
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+    const angle = Math.atan2(shot.vy || 0, shot.vx || 1);
+    drawCanvasFireball(ctx, x, y, shot.owner === "boss" ? 17 : 14, angle, shot.owner === "boss" ? "boss" : "player");
   });
+}
+
+function drawCanvasFireball(ctx, x, y, radius, angle = 0, owner = "boss", alpha = 1) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.globalAlpha = alpha;
+
+  const tail = radius * 2.15;
+  const bossFire = owner === "boss";
+  const tailGradient = ctx.createLinearGradient(-tail, 0, radius, 0);
+  tailGradient.addColorStop(0, "rgba(255, 42, 24, 0)");
+  tailGradient.addColorStop(.38, bossFire ? "rgba(255, 73, 28, .72)" : "rgba(65, 204, 255, .64)");
+  tailGradient.addColorStop(1, bossFire ? "rgba(255, 223, 92, .96)" : "rgba(255, 245, 144, .96)");
+
+  ctx.fillStyle = tailGradient;
+  ctx.beginPath();
+  ctx.moveTo(-tail, 0);
+  ctx.quadraticCurveTo(-radius * .8, -radius * .85, radius * .45, -radius * .55);
+  ctx.quadraticCurveTo(radius * 1.25, 0, radius * .45, radius * .55);
+  ctx.quadraticCurveTo(-radius * .8, radius * .85, -tail, 0);
+  ctx.fill();
+
+  const core = ctx.createRadialGradient(0, 0, 1, 0, 0, radius);
+  core.addColorStop(0, "#fffdf0");
+  core.addColorStop(.33, "#ffe474");
+  core.addColorStop(.7, bossFire ? "#ff6526" : "#65d9ff");
+  core.addColorStop(1, bossFire ? "#b81f21" : "#1b78d8");
+  ctx.fillStyle = core;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255,255,255,.78)";
+  ctx.beginPath();
+  ctx.arc(-radius * .25, -radius * .28, radius * .25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function renderMobileCanvasWhack(ctx, w, h, battle) {
@@ -2173,10 +2204,9 @@ function renderMobileCanvasWhack(ctx, w, h, battle) {
     const t = effect.t / effect.life;
     const x = pctX(effect.x + (50 - effect.x) * t, w);
     const y = pctY(effect.y + (92 - effect.y) * t, h);
-    ctx.fillStyle = `rgba(255, ${Math.floor(180 - 80 * t)}, 42, ${1 - t * .35})`;
-    ctx.beginPath();
-    ctx.arc(x, y, 18 + 10 * t, 0, Math.PI * 2);
-    ctx.fill();
+    const startX = pctX(effect.x, w);
+    const startY = pctY(effect.y, h);
+    drawCanvasFireball(ctx, x, y, 18 + 8 * t, Math.atan2(y - startY, x - startX), "boss", 1 - t * .25);
   });
 }
 
@@ -3294,20 +3324,26 @@ soundToggle?.addEventListener("click", toggleSound);
 window.addEventListener("pointerdown", unlockMusicPlayback, { once: true });
 window.addEventListener("keydown", unlockMusicPlayback, { once: true });
 window.addEventListener("dblclick", (event) => {
-  if (isMobileBattleMode()) event.preventDefault();
-}, { passive: false });
-document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
-document.addEventListener("gesturechange", (event) => event.preventDefault(), { passive: false });
+  if (DEVICE_PROFILE.touchLikely || isMobileBattleMode()) event.preventDefault();
+}, { passive: false, capture: true });
+document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false, capture: true });
+document.addEventListener("gesturechange", (event) => event.preventDefault(), { passive: false, capture: true });
 document.addEventListener("touchstart", (event) => {
-  if (isMobileBattleMode() && event.touches && event.touches.length > 1) event.preventDefault();
-}, { passive: false });
+  if ((DEVICE_PROFILE.touchLikely || isMobileBattleMode()) && event.touches && event.touches.length > 1) event.preventDefault();
+}, { passive: false, capture: true });
+document.addEventListener("touchmove", (event) => {
+  if ((DEVICE_PROFILE.touchLikely || isMobileBattleMode()) && event.touches && event.touches.length > 1) event.preventDefault();
+}, { passive: false, capture: true });
 let lastTouchEndAt = 0;
 document.addEventListener("touchend", (event) => {
-  if (!isMobileBattleMode()) return;
+  if (!(DEVICE_PROFILE.touchLikely || isMobileBattleMode())) return;
   const now = Date.now();
-  if (now - lastTouchEndAt < 420) event.preventDefault();
+  if (now - lastTouchEndAt < 520) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   lastTouchEndAt = now;
-}, { passive: false });
+}, { passive: false, capture: true });
 bossButton.addEventListener("click", () => {
   moveHeroToElement(bossNode);
   window.setTimeout(startBossBattle, 560);

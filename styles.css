@@ -11,6 +11,23 @@
 
 * { box-sizing: border-box; }
 
+html {
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+html button,
+html canvas,
+html [role="button"],
+html input,
+html .intro-card,
+html .modal-card,
+html .battle-scene {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 html.device-mobile,
 html.device-mobile body {
   touch-action: none;
